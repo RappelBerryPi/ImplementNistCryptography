@@ -15,6 +15,11 @@ class Cryptography:
         return self.getRandomNumber(length)
     
     def generateKey(self, length: int, V: bytes):
+        # add things to say why doing this is important. 
+        # reference nist.
+        # talk about how bytearrays are modifiable and need to be cleared after so a `bytes` is not enough
+        # talk about read only memory views to be returned to callers.
+        # discuss clearing memory
         U = self.generateIV(length)
 
         # length already checked
