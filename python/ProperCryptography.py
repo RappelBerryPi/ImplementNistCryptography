@@ -45,7 +45,7 @@ class Cryptography:
         B = bytearray(16)
         for i in range(0,len(B)):
             B[i] = i
-        print(B)
+        print("Initial:                     {}".format(B.hex()))
 
         # set up a memory view, then declare a readonly memoryview to pass around. 
         # the with will ensure that the code is easy to read, and the read only memory view is unmodifiable by whomever
@@ -53,16 +53,14 @@ class Cryptography:
         with memoryview(B) as mem:
             with mem.toreadonly() as memReadOnly:
                 # CALL YOUR FUNCTIONS HERE THAT USE THIS BYTE STRING
-                for i in range (0, len(memReadOnly)):
-                    print(hex(memReadOnly[i]), end=' ')
-                print()
+                print("Using memReadOnly:           {}".format(memReadOnly.hex()))
 
             # clear the memory
             for i in range(0,len(mem)):
                 mem[i] = 0x00
         
         #show that B is now clear
-        print(B)
+        print("After memoryView is cleared: {}".format(B.hex()))
 
 
 if __name__ == "__main__":
