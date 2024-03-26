@@ -1,6 +1,6 @@
 import secrets
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-import SymmetricKey
+import NewSymmetricKey
 
 class Cryptography:
     def getRandomNumber(length: int = 16):
@@ -43,7 +43,7 @@ if __name__ == "__main__":
     Cryptography.getRandomNumber()
 
     IV = Cryptography.generateIV(128)
-    with SymmetricKey.SymmetricKey(128, IV) as key:
+    with NewSymmetricKey.SymmetricKey(128, IV) as key:
         cbc = modes.CBC(IV)
         aes = algorithms.AES(key)
         cipher = Cipher(aes, cbc, None)

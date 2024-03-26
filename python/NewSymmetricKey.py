@@ -1,7 +1,7 @@
 from ProperCryptography import Cryptography
 
 
-class SymmetricKey():
+class NewSymmetricKey():
     def __init__(self, length: int, V: bytes):
         self._length = length
         self._V = V
@@ -34,6 +34,10 @@ class SymmetricKey():
         self._length = None
         self._V = None
         print("everything destroyed") # debug
+
+    def save(self):
+        # TODO: complete with file path and key wrapping / encryption options.
+        raise NotImplemented()
 
     
 if __name__ == "__main__":
