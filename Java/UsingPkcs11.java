@@ -15,19 +15,25 @@ import java.security.cert.CertificateException;
 
 public class UsingPkcs11 {
     public static void main(String[] args) {
-        final String configString = "softHSM.cfg";
+        // final String configString = "softHSM.cfg";
+        // final String keyName = "RSAKEY1";
+        // final String signatureInstance = "SHA256withRSA";
+
+        final String configString = "yubikeyHSM.cfg";
+        final String keyName = "X.509 Certificate for Digital Signature";
+        final String signatureInstance = "SHA256withECDSA";
         Provider p = Security.getProvider("SunPKCS11");
         p = p.configure(configString);
         Security.addProvider(p);
         try {
             KeyStore keyStore = KeyStore.getInstance("PKCS11");
             keyStore.load(null, args[0].toCharArray());
-            final PrivateKey privateKey = (PrivateKey) keyStore.getKey("RSAKEY1", null);
+            final PrivateKey privateKey = (PrivateKey) keyStore.getKey(keyName, null);
             System.out.println(privateKey);
             System.out.println(privateKey.getEncoded());
 
             // create a signature
-            Signature signature = Signature.getInstance("SHA256withRSA");
+            Signature signature = Signature.getInstance(signatureInstance);
             signature.initSign(privateKey);
             byte[] bytesToSign = "Hello, World!".getBytes();
             signature.update(bytesToSign);
