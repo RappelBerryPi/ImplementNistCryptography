@@ -1,0 +1,5 @@
+C#/.vs/*
+C#/*/bin/*
+C#/*/obj/*
+C#/*/Properties/*
+*.exe
