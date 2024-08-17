@@ -134,8 +134,9 @@ The general steps are below, (leaving out more technical details like flipping p
 + get the percentage threshold from the user, defaulting to 50% if none given.
 + get the domain in question (only focusing on 2 to the power inputted by the user as the second parameter) defaulting to 2**32
 + run the birthday problem on the hash domain space
-+ print out the hash number, the domain space (as the integer input from the user), the percentage threshold, and the
-  percentage of the domainspace the hash appears in (truncated to 10 decimal places if possible).
++ print out the hash number, the domain space (as the integer input from the user), the percentage threshold, the
+  percentage of the domainspace the hash appears in (truncated to 20 decimal places if possible), and the time it take
+  to run.
   + these are to be printed comma separated so we can pipe the output to a CSV for analysis. 
 
 ## statistical analysis
