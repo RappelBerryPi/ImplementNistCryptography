@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 
-/* compile with gcc -lleancrypto [file.c] */
+/* leancrypto is installed to the /usr/local directory and is non-standard so compile with gcc -lleancrypto [file.c] */
 int main() {
     /* create the structures to hold the pk, sk, and ct*/
     /* (secret) private key (decapsulation key) */

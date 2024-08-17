@@ -9,7 +9,11 @@ with open('output.csv', newline='') as csv_file:
     for row in reader:
         row_percentage_threshold = row['Percentage Threshold']
         if (row_percentage_threshold != percentage_threshold):
-            plt.plot(x_axis, y_axis, '0')
-        
-
-        print(row['Hash Number'], row['Domain Space'])
+            plt.plot(x_axis, y_axis)
+            x_axis = []
+            y_axis = []
+            percentage_threshold = row_percentage_threshold
+            plt.show()
+        x_axis.append(row['Domain Space'])
+        y_axis.append(row['Hash Number'])
+    
