@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Initial Key Exporting.cs.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Pkcs11Interop" Version="5.1.2" />
   </ItemGroup>
 
