@@ -144,4 +144,11 @@ The general steps are below, (leaving out more technical details like flipping p
 Once the programs have been ran (I ran mine from 2\*\*10 -> 2\*\*50 because I didn't want to wait any longer and I feel
 like that's enough for analysis) it's time to look over the file and run some statistics on when the hash crosses any
 certain threshoolds and see if we can't come up with a formula to describe (or approximate) the hash generation that
-will have the likelhood to produce a hash collision 
+will have the likelhood to produce a hash collision.
+
+From these two outputs, I've created an analysis program to show some visuals, It appears that the Domain space vs the
+hash generated produces some type of an exponential value. 
+
+It also appears that the percentage of correlation also produces an exponential value, but less so (this is the hash
+number versus the percentage threashold. the higher the threshold the more hashes need to be produced, although this may
+be more from lack of data or facilitate that then).
