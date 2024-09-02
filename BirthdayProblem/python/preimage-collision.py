@@ -6,7 +6,7 @@ display_domain_space = "365"
 display_percentage = 50
 
 if (len(sys.argv) > 1):
-    display_percentage = int(sys.argv[1])
+    display_percentage = float(sys.argv[1])
 
 if (len(sys.argv) > 2):
     domain_space = 2**(int(sys.argv[2]))
@@ -57,10 +57,10 @@ print("{}, {}, {}, {:.20f}, {}".format(hash_spot_past_threshold, display_domain_
 # people were to walk into a room, you have about 43 people until a singular birthday colision of some kind is found ,
 # but by picking exactly one birthday, you have to get 1679 people in a room to have a 99% chance that a person with the
 # same birthday has walked in. This is because (randomly) a person has a 1/365 chance that they share a birthday each
-# time, but they also have a 364/365 chance that they do not (pretending leap years do not exist). 
+# time, but they also have a 364/365 chance that they do not (pretending leap years do not exist).
 
 # of course, you could calculate based upon the perceived favorable event in which a person does share a birthday vs the
-# number of total events. 
+# number of total events.
 
 # for example, the chance that someone walks in with a birthday is 1/1, but let's pick that birthday as jan-1. then
 # every person that walks in after that always has a 1/365 chance of having that same birthday. because of this, the
