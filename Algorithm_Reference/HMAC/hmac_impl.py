@@ -1,5 +1,4 @@
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives import hmac as hm
 
 def hmac(H : hashes.HashAlgorithm, K : bytes, text: bytes):
     B = H.block_size
@@ -12,11 +11,11 @@ def hmac(H : hashes.HashAlgorithm, K : bytes, text: bytes):
     if (len(K) == B):
         pass
     # Step 2
-    elif (len(K) > B): 
+    elif (len(K) > B):
         digest = hashes.Hash(H)
         digest.update(K)
         K = digest.finalize()
-        K2 = bytearray(K) 
+        K2 = bytearray(K)
         K3 = b'\x00' * (B - L)
         K2.extend(K3)
         K = bytes(K2)
@@ -26,7 +25,7 @@ def hmac(H : hashes.HashAlgorithm, K : bytes, text: bytes):
         K3 = b'\x00' * (B - len(K))
         K2.extend(K3)
         K = bytes(K2)
-    
+
     # Step 4
     intermediate = bytearray()
     for i in range(0, B):
@@ -55,9 +54,9 @@ def hmac(H : hashes.HashAlgorithm, K : bytes, text: bytes):
     result = digest.finalize()
     return result
 
-
-print(hmac(hashes.SHA512(), b'key', b'textToHash'))
-
-hmac2 = hm.HMAC(b'key', hashes.SHA512())
-hmac2.update(b'textToHash')
-print(hmac2.finalize())
+if __name__ == "__main__":
+    from cryptography.hazmat.primitives import hmac as hm
+    print(hmac(hashes.SHA512(), b'key', b'textToHash'))
+    hmac2 = hm.HMAC(b'key', hashes.SHA512())
+    hmac2.update(b'textToHash')
+    print(hmac2.finalize())
