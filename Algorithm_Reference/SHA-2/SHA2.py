@@ -266,6 +266,7 @@ class SHA2_Instance:
         M = bytearray(M)
         M.append(0x80)
         M.extend(b"\x00" * k)
+        l = l * 8 # need length in bits
         M.extend(l.to_bytes(8, "big"))
 
         # print(len(M))
@@ -282,7 +283,7 @@ class SHA2_Instance:
         block_mod = 896 
         block_mod_bytes = block_mod // 8
 
-        l = len(M)
+        l = len(M) * 8
         k = block_mod_bytes - ((l + 1) % block_size_in_bytes)
         M = bytearray(M)
         M.append(0x80)
@@ -417,8 +418,7 @@ class SHA2_Instance:
 
 
 x = SHA2_Instance(SHA2.SHA2_256)
-# TODO: figure out what's wrong and fix it
-string = b'abc'
+string = b'Hello World'
 print(x.hash_256(string))
 
 y = hashes.Hash(hashes.SHA256())
