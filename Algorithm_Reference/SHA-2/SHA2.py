@@ -411,7 +411,6 @@ class SHA2_Instance:
         returnByteArray.extend(H_7_Bytes)
 
         return bytes(returnByteArray)
-        # TODO: FINISH
     
 
 
@@ -424,3 +423,9 @@ print(x.hash_256(string))
 y = hashes.Hash(hashes.SHA256())
 y.update(string)
 print(y.finalize())
+
+
+
+
+# TODO: FINISH 224, 384, 512, 512/224, and 512/256
+
