@@ -165,12 +165,12 @@ class SHA2_Instance:
         return ((x << n) | (x >> (w - n))) % (2**w)
     
     # choose (4.2 & 4.8)
-    def Ch(x: int, y: int, z: int):
-        return ((x & y) ^ ((x ^ 0xFFFFFFFF) & z)) % (2**32)
+    def Ch(x: int, y: int, z: int, w: int):
+        return ((x & y) ^ ((~x) & z)) % (2**w)
 
     # Majority (4.3 & 4.9)
-    def Maj(x: int, y: int, z: int):
-        return ((x & y) ^ (x & z) ^ (y & z)) % (2**32)
+    def Maj(x: int, y: int, z: int, w: int):
+        return ((x & y) ^ (x & z) ^ (y & z)) % (2**w)
 
     # 4.4
     def SIGMA_256_0(self, x: int):
@@ -237,6 +237,7 @@ class SHA2_Instance:
         self.word_size = 0
         self.message_digest_size = 0
         self.initial_hash_value = []
+        self.sha2 = Sha2
 
         self.message_size = SHA2_Instance._SHA2_dictionary[Sha2]["max_message_size"]
         self.block_size = SHA2_Instance._SHA2_dictionary[Sha2]["block_size"]
@@ -283,11 +284,12 @@ class SHA2_Instance:
         block_mod = 896 
         block_mod_bytes = block_mod // 8
 
-        l = len(M) * 8
+        l = len(M)
         k = block_mod_bytes - ((l + 1) % block_size_in_bytes)
         M = bytearray(M)
         M.append(0x80)
         M.extend(b"\x00" * k)
+        l = l * 8 # need length in bits
         M.extend(l.to_bytes(16, "big"))
 
         # print(len(M))
@@ -355,12 +357,12 @@ class SHA2_Instance:
             h = H[n][7]
             for t in range(0, 64):
                 temp1 = SHA2_Instance.add(h, self.SIGMA_256_1(e), self.word_size)
-                temp1 = SHA2_Instance.add(temp1, SHA2_Instance.Ch(e, f, g), self.word_size)
+                temp1 = SHA2_Instance.add(temp1, SHA2_Instance.Ch(e, f, g, 32), self.word_size)
                 temp1 = SHA2_Instance.add(temp1, self._K_256[t], self.word_size)
                 temp1 = SHA2_Instance.add(temp1, W[t], self.word_size)
 
                 T_1 = temp1
-                T_2 = SHA2_Instance.add(self.SIGMA_256_0(a), SHA2_Instance.Maj(a, b, c), self.word_size)
+                T_2 = SHA2_Instance.add(self.SIGMA_256_0(a), SHA2_Instance.Maj(a, b, c, 32), self.word_size)
                 h = g
                 g = f
                 f = e
@@ -412,13 +414,148 @@ class SHA2_Instance:
 
         return bytes(returnByteArray)
     
+    # 6.3
+    def hash_224(self, M: bytes):
+        returnByteArray = self.hash_256(M)
+        # only subset the left 224 bits
+        returnBytesLen = 224 // 8
+        return returnByteArray[0:returnBytesLen]
 
+    # 6.4
+    def hash_512(self, M: bytes):
+        M = self.padMessage_512(M)
+        M = self.ParseMessage(M)
+
+        # setup a - f from initial hash values
+        H = []
+        H_0 = [
+            self.initial_hash_value[0],
+            self.initial_hash_value[1],
+            self.initial_hash_value[2],
+            self.initial_hash_value[3],
+            self.initial_hash_value[4],
+            self.initial_hash_value[5],
+            self.initial_hash_value[6],
+            self.initial_hash_value[7]
+        ] 
+        H.append(H_0)
+        for n in range(0, len(M)):
+            W = M[n]
+            for t in range(16, 80):
+                temp1 = self.sigma_512_1(W[t - 2])
+                temp2 = self.sigma_512_0(W[t - 15])
+                temp3 = SHA2_Instance.add(temp1, W[t - 7], self.word_size)
+                temp3 = SHA2_Instance.add(temp3, temp2, self.word_size)
+                W.append(SHA2_Instance.add(temp3, W[t-16], self.word_size))
+
+            a = H[n][0]
+            b = H[n][1]
+            c = H[n][2]
+            d = H[n][3]
+            e = H[n][4]
+            f = H[n][5]
+            g = H[n][6]
+            h = H[n][7]
+            for t in range(0, 80):
+                temp1 = SHA2_Instance.add(h, self.SIGMA_512_1(e), self.word_size)
+                temp1 = SHA2_Instance.add(temp1, SHA2_Instance.Ch(e, f, g, 64), self.word_size)
+                temp1 = SHA2_Instance.add(temp1, self._K_512[t], self.word_size)
+                temp1 = SHA2_Instance.add(temp1, W[t], self.word_size)
+
+                T_1 = temp1
+                T_2 = SHA2_Instance.add(self.SIGMA_512_0(a), SHA2_Instance.Maj(a, b, c, 64), self.word_size)
+                h = g
+                g = f
+                f = e
+                e = SHA2_Instance.add(d, T_1, self.word_size)
+                d = c
+                c = b
+                b = a
+                a = SHA2_Instance.add(T_1, T_2, self.word_size)
+        
+            H_t = []
+            # H_t.append(H[n][0] + a)
+            # H_t.append(H[n][1] + b)
+            # H_t.append(H[n][2] + c)
+            # H_t.append(H[n][3] + d)
+            # H_t.append(H[n][4] + e)
+            # H_t.append(H[n][5] + f)
+            # H_t.append(H[n][6] + g)
+            # H_t.append(H[n][7] + h)
+            H_t.append(SHA2_Instance.add(H[n][0], a, self.word_size))
+            H_t.append(SHA2_Instance.add(H[n][1], b, self.word_size))
+            H_t.append(SHA2_Instance.add(H[n][2], c, self.word_size))
+            H_t.append(SHA2_Instance.add(H[n][3], d, self.word_size))
+            H_t.append(SHA2_Instance.add(H[n][4], e, self.word_size))
+            H_t.append(SHA2_Instance.add(H[n][5], f, self.word_size))
+            H_t.append(SHA2_Instance.add(H[n][6], g, self.word_size))
+            H_t.append(SHA2_Instance.add(H[n][7], h, self.word_size))
+            H.append(H_t)
+
+        n = len(H) - 1
+        word_size_bytes = self.word_size // 8
+        H_0_Bytes = H[n][0].to_bytes(word_size_bytes, "big")
+        H_1_Bytes = H[n][1].to_bytes(word_size_bytes, "big")
+        H_2_Bytes = H[n][2].to_bytes(word_size_bytes, "big")
+        H_3_Bytes = H[n][3].to_bytes(word_size_bytes, "big")
+        H_4_Bytes = H[n][4].to_bytes(word_size_bytes, "big")
+        H_5_Bytes = H[n][5].to_bytes(word_size_bytes, "big")
+        H_6_Bytes = H[n][6].to_bytes(word_size_bytes, "big")
+        H_7_Bytes = H[n][7].to_bytes(word_size_bytes, "big")
+
+        returnByteArray = bytearray()
+        returnByteArray.extend(H_0_Bytes)
+        returnByteArray.extend(H_1_Bytes)
+        returnByteArray.extend(H_2_Bytes)
+        returnByteArray.extend(H_3_Bytes)
+        returnByteArray.extend(H_4_Bytes)
+        returnByteArray.extend(H_5_Bytes)
+        returnByteArray.extend(H_6_Bytes)
+        returnByteArray.extend(H_7_Bytes)
+
+        return bytes(returnByteArray)
+
+    # 6.5
+    def hash_384(self, M: bytes):
+        returnByteArray = self.hash_512(M)
+        returnBytesLen = 384 // 8
+        return returnByteArray[0:returnBytesLen]
+
+    # 6.6
+    def hash_512_224(self, M: bytes):
+        returnByteArray = self.hash_512(M)
+        returnBytesLen = 224 // 8
+        return returnByteArray[0:returnBytesLen]
+
+    # 6.7
+    def hash_512_256(self, M: bytes):
+        returnByteArray = self.hash_512(M)
+        returnBytesLen = 256 // 8
+        return returnByteArray[0:returnBytesLen]
+    
+    # proxy function
+    def hash(self, M: bytes):
+        if (self.sha2 == SHA2.SHA2_224):
+            return self.hash_224(M)
+        elif (self.sha2 == SHA2.SHA2_256):
+            return self.hash_256(M)
+        elif (self.sha2 == SHA2.SHA2_384):
+            return self.hash_384(M)
+        elif (self.sha2 == SHA2.SHA2_512):
+            return self.hash_512(M)
+        elif (self.sha2 == SHA2.SHA2_512_224):
+            return self.hash_512_224(M)
+        elif (self.sha2 == SHA2.SHA2_512_256):
+            return self.hash_512_256(M)
 
 
 
 x = SHA2_Instance(SHA2.SHA2_256)
-string = b'Hello World'
-print(x.hash_256(string))
+# string = b'Hello World'
+string = b'abc'
+# print(x.hash_256(string))
+# print(x.hash_224(string))
+print(x.hash(string))
 
 y = hashes.Hash(hashes.SHA256())
 y.update(string)
