@@ -1066,8 +1066,19 @@ def primes():
 # 104677,104681,104683,104693,104701,104707,104711,104717,104723,104729]
 
     x = 1
-    for i in range (0, len(p)):
+    for i in range (0, 10):
         x = x * ((p[i]-1) / p[i])
         print(f'{i}: {(1 - x)}')
+    
+    target = [.85, .86, .87, .88, .89, .90, .91, .92, .93, .94, .95, .96]
+    j = 0
+    for i in range (10, len(p)):
+        x = x * ((p[i]-1) / p[i])
+        y = 1 - x
+        if (y > target[j]):
+            print(f'{i}: {y}')
+            j = j + 1
+    
+    print(f'last: {i}: {(1 - x)}')
 
 primes()
