@@ -89,18 +89,40 @@ with open('output.csv', newline='') as csv_file:
 
 
     hash_lengths = [64, 128, 192, 256, 384, 512]
-    for i in range(0, len(a_b)):
-        for len in hash_lengths:
-            hash_number = a_b[i]['a'] * np.exp(a_b[i]['b'] * len)
-            print(f"A hash with a length of {len} will find a collision at {a_b[i]['percentage']}% threshold. This is hash number {hash_number:,.1f}")
+    for length in hash_lengths:
+        for i in range(0, len(a_b)):
+            hash_number = a_b[i]['a'] * np.exp(a_b[i]['b'] * length)
+            between_power = 1
+            while (hash_number > 2**between_power):
+                between_power += 1
+            print(f"A hash with a length of {length} will find a collision at {a_b[i]['percentage']}% threshold. This is hash number {hash_number:,.1f}")
+            print(f"\tThis is a resulting bit-strength between 2^{between_power - 1} and 2^{between_power}")
             
             # From here we can do even more math. 
 
             # there are approximately 2 billion computers in the world. Let's assume that on average, the general
             # computer could generate 10,000,000,000 (10 billion) hashes a second. If this is the case. how many years
             # will it take to break hashes of these lengths?
-            number_of_computations_in_year = 10000000000 * 365 * 24 * 60 * 60
+            number_of_computers = 2000000000
+            number_of_hash_per_computer = 10000000000 
+            number_of_computations_in_year = 365 * 24 * 60 * 60 * number_of_hash_per_computer * number_of_computers
             num_of_years = hash_number / number_of_computations_in_year
-            print(f"It will take {num_of_years:,.1f} years to find a hash collision at this level if all the computers in the world were dedicated to finding this collision")
+            time_reference = "years"
+            computers = "all computers"
+            if (num_of_years < 1):
+                num_of_years *= 365
+                time_reference = "days"
+                if (num_of_years < 1):
+                    num_of_years *= 24
+                    time_reference = "hours"
+                    if (num_of_years < 1):
+                        num_of_years *= 60
+                        time_reference = "minutes"
+                        if (num_of_years < 1):
+                            num_of_years *= 60
+                            time_reference = "seconds"
+            print(f"\tIt will take {num_of_years:,.1f} {time_reference} for all computers in the world to find a hash collision at this level.")
+            num_of_years *= number_of_computers
+            print(f"\tIt will take one computer {num_of_years:,.1f} {time_reference}")
             print("")
         print("")
