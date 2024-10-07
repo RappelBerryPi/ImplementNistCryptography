@@ -1,0 +1,6 @@
+CPU,OS,Description,RSA 2048 Signs,RSA 2048 Verifies,RSA 3072 Signs,RSA 3072 Verifies,ECDSA 384 Signs,ECDSA 384 Verifies,ECDSA 521 Signs,ECDSA 521 Verifies
+Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz,Windows 11,.NET Framework 5 avg Run,1667.5,13639.4,600.4,10960.6,1523,1676.9,679.6,664.4
+Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz,Windows 11,.NET Core 5 avg Run,2049.7,55031.4,636,27366.2,1701.7,1622.8,752.8,673.2
+Intel(R) Core(TM) i5-4200U CPU @ 1.60GHz,Ubuntu 22.04.5 LTS,openssl 3.0.2 speed Test,1265,28352.7,263.7,13270,815.7,981.4,2191,1079.9
+Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz,Ubuntu 22.05.04 LTS,conda openssl 1.1.1l speed Test,2231.7,75169.4,692.1,32743.7,1277.9,1593,561.3,707.5
+Intel(R) Core(TM) i7-10750H CPU @ 2.60GHz,Ubuntu 22.05.04 LTS,openssl 3.0.2 speed Test,2056.4,68488.3,704.2,36032.2,1424,1674.1,4230.7,2144.9
