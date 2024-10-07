@@ -1069,7 +1069,7 @@ def primes():
     for i in range (0, 10):
         x = x * ((p[i]-1) / p[i])
         print(f'{i}: {(1 - x)}')
-    
+
     target = [.85, .86, .87, .88, .89, .90, .91, .92, .93, .94, .95, .96]
     j = 0
     for i in range (10, len(p)):
@@ -1078,7 +1078,7 @@ def primes():
         if (y > target[j]):
             print(f'{i}: {y}')
             j = j + 1
-    
+
     print(f'last: {i}: {(1 - x)}')
 
 def test_primality(n: int, last: int = None):
@@ -2087,27 +2087,36 @@ def test_primality(n: int, last: int = None):
 # 104677,104681,104683,104693,104701,104707,104711,104717,104723,104729]
     if (last == None):
         last = len(p)
-    x = 1
     is_prime = True
     for i in range (0, last):
-        x = x * ((p[i]-1) / p[i])
-        if (n % p[i]):
+        if ((n % p[i]) == 0):
             is_prime = False
             break
     if (is_prime):
         print("number probably prime")
+        end = time.time()
+        print(end - start)
     else:
-        print("number not prime")
-    end = time.time()
-    print(end - start)
+        pass
+        # print("number not prime")
+    return is_prime
 
-primes()
+# primes()
 import os
+import time
 # 256 -> 2048 bits
+# p and q have to be 1/2 bit length of n
 # 1920 -> 15360 bits
-n = int.from_bytes(os.urandom(256))
+returnedTrue = False
+start = time.time()
+while (not returnedTrue):
+    n = int.from_bytes(os.urandom(128))
+    returnedTrue = test_primality(n)
+    # returnedTrue = test_primality(n, last = 10)
+
+end = time.time()
 print(n)
-test_primality(n)
+print(end - start)
 
 #    last = 11
 #    last = 55
