@@ -3,3 +3,4 @@ C#/*/bin/*
 C#/*/obj/*
 C#/*/Properties/*
 *.exe
+*.pem
