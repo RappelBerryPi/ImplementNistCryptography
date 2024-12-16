@@ -1,0 +1,197 @@
+<html>
+    <head>
+        <style>
+            #log {
+              height: 170px;
+              white-space: pre-wrap; /* wrap pre blocks */
+              overflow-wrap: break-word; /* break on words */
+              overflow-y: auto;
+              padding: 0.5rem;
+              border: 1px solid black;
+            }
+        </style>
+    </head>
+    <body>
+        <input id="run-button" type="button" value="Run" />
+        <pre id="log">Click "Run" button</pre>
+        <script>
+
+const logElement = document.querySelector("#log");
+function log(text) {
+  logElement.innerText = `${logElement.innerText}${text}\n`;
+  logElement.scrollTop = logElement.scrollHeight;
+}
+
+const button = document.querySelector("#run-button");
+const input = document.querySelector("#log");
+
+button.addEventListener("click", () => {
+  // Clear log
+  logElement.innerText = "";
+  logElement.scrollTop = logElement.scrollHeight;
+  // Run test
+  test();
+});
+
+// RSA
+
+async function generateRSAKey(size) {
+    try {
+        const { publicKey, privateKey} = await window.crypto.subtle.generateKey(
+          {
+            name: "RSA-PSS",
+            modulusLength: size,
+            publicExponent: new Uint8Array([1, 0, 1]), //65537 or whatever it is
+            hash: "SHA-256",
+          },
+          true,
+          ["sign", "verify"],
+        );
+        return [publicKey, privateKey]
+    } catch (error) {
+        log(error);
+    }
+}
+
+async function signRSAData(privateKey, data) {
+    let signature = await window.crypto.subtle.sign({
+        name: "RSA-PSS",
+        saltLength: 4, 
+    }, privateKey, data);
+    return signature;
+}
+
+async function verifyRSAData(publicKey, signature, data) {
+    let result = await window.crypto.subtle.verify({
+        name: "RSA-PSS",
+        saltLength: 4, 
+    }, publicKey, signature, data);
+    return result;
+}
+
+//ECDSA 
+async function generateECDSAKey(size) {
+    const { privateKey, publicKey} = await window.crypto.subtle.generateKey({
+        name: "ECDSA",
+        namedCurve: `P-${size}`,
+      },
+      true,
+      ["sign", "verify"],
+    );
+    return [publicKey, privateKey];
+}
+
+async function signECDSAData(privateKey, data) {
+    let signature = await window.crypto.subtle.sign({
+        name: "ECDSA",
+        hash: { name: "SHA-256" },
+    }, privateKey, data);
+    return signature;
+}
+
+async function verifyECDSAData(publicKey, signature, data) {
+    let result = await window.crypto.subtle.verify({
+        name: "ECDSA",
+        hash: { name: "SHA-256" },
+    }, publicKey, signature, data);
+    return result;
+}
+
+async function test() {
+  try {
+    // Create a key pair and use destructuring assignment to assign to variables
+    let ECDSASizes = [256, 384, 521];
+    let RSASizes = [2048, 3072, 4096];
+    let data = new TextEncoder().encode("abc");
+    let loopCount = 1000;
+    let average = 5;
+    for (let size of ECDSASizes) {
+        let sign_times = [];
+        let verify_times = [];
+        for (let i = 0; i < average; i++) {
+            let x = await generateECDSAKey(size);
+            let publicKey = x[0];
+            let privateKey = x[1];
+            let signatures = [];
+
+            let start = Date.now();
+            for (let i = 0; i < loopCount; i++) {
+                let signature = await signECDSAData(privateKey, data);
+                signatures.push(signature);
+            }
+            let end = Date.now();
+            let timeElapsed = end - start;
+            let sign_time = (timeElapsed / 1000);
+            sign_times.push(sign_time);
+            let signs_per_second = loopCount / sign_time;
+            log(`ECDSA (${size}) signs/second: ${signs_per_second}`);
+
+            start = Date.now();
+            for (let i = 0; i < loopCount; i++) {
+                await verifyECDSAData(publicKey, signatures[i], data);
+            }
+            end = Date.now();
+            timeElapsed = end - start;
+            let verify_time = (timeElapsed / 1000);
+            verify_times.push(verify_time);
+            let verifies_per_second = loopCount / verify_time;
+            log(`ECDSA (${size}) verifications/second: ${verifies_per_second}`);
+            log("");
+        }
+        log(`${average} run average:`)
+        let sign_time_average = sign_times.reduce((accumulator, currentValue) => accumulator + currentValue, 0) / average;
+        let verify_time_average = verify_times.reduce((accumulator, currentValue) => accumulator + currentValue, 0) / average;
+        let average_signs = loopCount / (sign_time_average)
+        let average_verifies = loopCount / (verify_time_average)
+        log(`\tECDSA (${size}) average signs/second: ${average_signs}`)
+        log(`\tECDSA (${size}) average verifications/second: ${average_verifies}`)
+    }
+    //RSA
+    for (let size of RSASizes) {
+        let sign_times = [];
+        let verify_times = [];
+        for (let i = 0; i < average; i++) {
+            let x = await generateRSAKey(size);
+            let publicKey = x[0];
+            let privateKey = x[1];
+            let signatures = [];
+
+            let start = Date.now();
+            for (let i = 0; i < loopCount; i++) {
+                let signature = await signRSAData(privateKey, data);
+                signatures.push(signature);
+            }
+            let end = Date.now();
+            let timeElapsed = end - start;
+            let sign_time = (timeElapsed / 1000);
+            sign_times.push(sign_time);
+            let signs_per_second = loopCount / sign_time;
+            log(`RSA (${size}) signs/second: ${signs_per_second}`);
+
+            start = Date.now();
+            for (let i = 0; i < loopCount; i++) {
+                await verifyRSAData(publicKey, signatures[i], data);
+            }
+            end = Date.now();
+            timeElapsed = end - start;
+            let verify_time = (timeElapsed / 1000);
+            verify_times.push(verify_time);
+            let verifies_per_second = loopCount / verify_time;
+            log(`RSA (${size}) verifications/second: ${verifies_per_second}`);
+            log("");
+        }
+        log(`${average} run average:`)
+        let sign_time_average = sign_times.reduce((accumulator, currentValue) => accumulator + currentValue, 0) / average;
+        let verify_time_average = verify_times.reduce((accumulator, currentValue) => accumulator + currentValue, 0) / average;
+        let average_signs = loopCount / (sign_time_average)
+        let average_verifies = loopCount / (verify_time_average)
+        log(`\tRSA (${size}) average signs/second: ${average_signs}`)
+        log(`\tRSA (${size}) average verifications/second: ${average_verifies}`)
+    }
+  } catch (error) {
+    log(error);
+  }
+}
+        </script>
+    </body>
+</html>

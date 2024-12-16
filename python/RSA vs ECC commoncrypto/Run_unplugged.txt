@@ -1,0 +1,118 @@
+(Battery went from 75% to 70%!unplugged on iPhone 13 Pro running 18.1.1)
+
+ECDSA
+ECDSA (256) Signatures per second: 8107.084862532215
+ECDSA (256) Signature verifications per second: 9063.989043450045
+
+ECDSA (256) Signatures per second: 8122.236409061817
+ECDSA (256) Signature verifications per second: 8995.10306589093
+
+ECDSA (256) Signatures per second: 8186.615538523757
+ECDSA (256) Signature verifications per second: 9014.978386589319
+
+ECDSA (256) Signatures per second: 8127.722278980817
+ECDSA (256) Signature verifications per second: 9018.319814871931
+
+ECDSA (256) Signatures per second: 8073.514190815893
+ECDSA (256) Signature verifications per second: 9082.858375530779
+
+ECDSA 5 run average (256) Signs/second: 8123.268322275399
+ECDSA 5 run average (256) Verifications/second: 9034.930305451118
+
+
+ECDSA (384) Signatures per second: 3124.512771289727
+ECDSA (384) Signature verifications per second: 3263.532891842604
+
+ECDSA (384) Signatures per second: 3115.0318979266344
+ECDSA (384) Signature verifications per second: 3263.98454176921
+
+ECDSA (384) Signatures per second: 3126.8223511515303
+ECDSA (384) Signature verifications per second: 3262.204232253283
+
+ECDSA (384) Signatures per second: 3122.379152998452
+ECDSA (384) Signature verifications per second: 3263.9270133696978
+
+ECDSA (384) Signatures per second: 3096.1199734105217
+ECDSA (384) Signature verifications per second: 3250.4511626213716
+
+ECDSA 5 run average (384) Signs/second: 3116.9331821163587
+ECDSA 5 run average (384) Verifications/second: 3260.8115794810433
+
+
+ECDSA (521) Signatures per second: 1154.2814955517454
+ECDSA (521) Signature verifications per second: 1173.2192526217932
+
+ECDSA (521) Signatures per second: 1129.942226053982
+ECDSA (521) Signature verifications per second: 1153.0259089533845
+
+ECDSA (521) Signatures per second: 1128.5902147616891
+ECDSA (521) Signature verifications per second: 1137.1564152963458
+
+ECDSA (521) Signatures per second: 1110.0075169709048
+ECDSA (521) Signature verifications per second: 1104.5370294382315
+
+ECDSA (521) Signatures per second: 1066.4462109059482
+ECDSA (521) Signature verifications per second: 1042.8661800374973
+
+ECDSA 5 run average (521) Signs/second: 1117.0711573880426
+ECDSA 5 run average (521) Verifications/second: 1120.2529226390525
+
+
+RSA
+RSA (2048) Signatures per second: 736.2296706741611
+RSA (2048) Signature verifications per second: 42763.18602841186
+
+RSA (2048) Signatures per second: 748.0991548574227
+RSA (2048) Signature verifications per second: 42659.568114532405
+
+RSA (2048) Signatures per second: 769.2841457153412
+RSA (2048) Signature verifications per second: 43769.805837141306
+
+RSA (2048) Signatures per second: 777.422892865217
+RSA (2048) Signature verifications per second: 44189.52001343361
+
+RSA (2048) Signatures per second: 773.1345635295881
+RSA (2048) Signature verifications per second: 44053.44564025075
+
+RSA 5 run average (2048) Signs/second: 760.4979247608679
+RSA 5 run average (2048) Verifications/second: 43477.39132173878
+
+
+RSA (3072) Signatures per second: 270.6424768225166
+RSA (3072) Signature verifications per second: 20617.536451804448
+
+RSA (3072) Signatures per second: 269.540740045126
+RSA (3072) Signature verifications per second: 20638.301385242787
+
+RSA (3072) Signatures per second: 274.0660404878858
+RSA (3072) Signature verifications per second: 20683.59274005895
+
+RSA (3072) Signatures per second: 263.2691813910707
+RSA (3072) Signature verifications per second: 20210.063398968883
+
+RSA (3072) Signatures per second: 264.3342726804159
+RSA (3072) Signature verifications per second: 19861.722686655507
+
+RSA 5 run average (3072) Signs/second: 268.30995711451703
+RSA 5 run average (3072) Verifications/second: 20397.18208850011
+
+
+RSA (4096) Signatures per second: 124.043808303691
+RSA (4096) Signature verifications per second: 11588.197189398654
+
+RSA (4096) Signatures per second: 117.44464229168885
+RSA (4096) Signature verifications per second: 11592.18686605228
+
+RSA (4096) Signatures per second: 121.68278284143777
+RSA (4096) Signature verifications per second: 11599.757333076592
+
+RSA (4096) Signatures per second: 122.86989826212692
+RSA (4096) Signature verifications per second: 11632.072881915848
+
+RSA (4096) Signatures per second: 122.24581403438667
+RSA (4096) Signature verifications per second: 11623.473837885085
+
+RSA 5 run average (4096) Signs/second: 121.615038763918
+RSA 5 run average (4096) Verifications/second: 11607.11135212633
+
+
