@@ -1,4 +1,5 @@
 
+#rcon Table 5, (pg 17)
 rcon = [
     [0x01,0x00,0x00,0x00],
     [0x02,0x00,0x00,0x00],
@@ -12,6 +13,7 @@ rcon = [
     [0x36,0x00,0x00,0x00]
 ]
 
+#Table 4 (pg 14)
 SBox = [
 0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
 0xca,0x82,0xc9,0x7d,0xfa,0x59,0x47,0xf0,0xad,0xd4,0xa2,0xaf,0x9c,0xa4,0x72,0xc0,
@@ -70,19 +72,15 @@ class AES:
     # FIPS 197 Algorithm 1
     def Cipher(self, input: bytes, rounds: int, w: bytes):
         state = self.convertByteArrayToStateArray(input)
-        state = self.AddRoundKey(state, w[0:4])
-        for round in range (1,rounds - 1):
+        state = self.AddRoundKey(state, w, 0)
+        for round in range (1,rounds):
             state = self.SubBytes(state)
             state = self.ShiftRows(state)
             state = self.MixColumns(state)
-            start = 4 * round
-            end = start + 4
-            state = self.AddRoundKey(state, w[start:end])
+            state = self.AddRoundKey(state, w, round)
         state = self.SubBytes(state)
         state = self.ShiftRows(state)
-        start = 4 * rounds
-        end = start + 4
-        state = self.AddRoundKey(state, w[start:end])
+        state = self.AddRoundKey(state, w, rounds)
         return self.convertStateArrayToByteArray(state)
         
     def AES_128(self, input: bytes, key: bytes):
@@ -94,23 +92,61 @@ class AES:
     def AES_256(self, input: bytes, key: bytes):
         return self.Cipher(input, 14, self.KeyExpansion(key, 14))
 
-    def AddRoundKey(self, state, w):
-        pass
-    
     def SubBytes(self, state):
-        pass
+        returnState = [
+            [SBox[state[0][0]], SBox[state[0][1]], SBox[state[0][2]], SBox[state[0][3]]],
+            [SBox[state[1][0]], SBox[state[1][1]], SBox[state[1][2]], SBox[state[1][3]]],
+            [SBox[state[2][0]], SBox[state[2][1]], SBox[state[2][2]], SBox[state[2][3]]],
+            [SBox[state[3][0]], SBox[state[3][1]], SBox[state[3][2]], SBox[state[3][3]]]
+        ]
+        return returnState
 
     def ShiftRows(self, state):
-        pass
+        returnState = [
+            [state[0][0], state[0][1], state[0][2], state[0][3]],
+            [state[1][1], state[1][2], state[1][3], state[1][0]],
+            [state[2][2], state[2][3], state[2][0], state[2][1]],
+            [state[3][3], state[3][0], state[3][1], state[3][2]]
+        ]
+        return returnState
     
     def MixColumns(self, state):
-        pass
+        returnState = [[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]
+        for i in range (0,4):
+            returnState[0][i] = self.MULT2(state[0][i]) ^ self.MULT3(state[1][i]) ^ state[2][i] ^ state[3][i]
+            returnState[1][i] = self.MULT2(state[1][i]) ^ self.MULT3(state[2][i]) ^ state[3][i] ^ state[0][i]
+            returnState[2][i] = self.MULT2(state[2][i]) ^ self.MULT3(state[3][i]) ^ state[0][i] ^ state[1][i]
+            returnState[3][i] = self.MULT2(state[3][i]) ^ self.MULT3(state[0][i]) ^ state[1][i] ^ state[2][i]
+        return returnState
 
-    def AddRoundKey(self, state, w):
-        pass
+    def MULT2(self, stateValue):
+        if (stateValue & 128 == 0):
+            stateValue = (stateValue << 1) % 256
+        else:
+            stateValue = ((stateValue << 1) % 256) ^ 0b0001_1011
+        return stateValue
+    
+    def MULT3(self, stateValue):
+        return self.MULT2(stateValue) ^ stateValue
+
+
+    def AddRoundKey(self, state, w, round):
+        returnState = [
+            [0,0,0,0],
+            [0,0,0,0],
+            [0,0,0,0],
+            [0,0,0,0]
+        ]
+        for i in range (0,4):
+            word = w[4*round + i]
+            returnState[0][i] = state[0][i] ^ word[0]
+            returnState[1][i] = state[1][i] ^ word[1]
+            returnState[2][i] = state[2][i] ^ word[2]
+            returnState[3][i] = state[3][i] ^ word[3]
+        return returnState
 
     # 3.4 of FIPS 197
-    def convertByteArrayToStateArray(input: bytes):
+    def convertByteArrayToStateArray(self, input: bytes):
         if (len(input) != 16):
             raise ValueError("Must be the blocksize of the AES algorithm, which is 16 bytes")
         s = [[input[0], input[4], input[8], input[12]],
@@ -120,7 +156,7 @@ class AES:
             ]
         return s
 
-    def convertStateArrayToByteArray(state: bytes):
+    def convertStateArrayToByteArray(self, state: bytes):
         outputArray = [state[0][0], state[1][0], state[2][0], state[3][0],
                        state[0][1], state[1][1], state[2][1], state[3][1],
                        state[0][2], state[1][2], state[2][2], state[3][2],
@@ -158,6 +194,13 @@ class AES:
 
 
 x = AES()
+
+input = [ 0x32, 0x43, 0xf6, 0xa8, 0x88, 0x5a, 0x30, 0x8d, 0x31, 0x31, 0x98, 0xa2, 0xe0, 0x37, 0x07, 0x34]
+key = [ 0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c ]
+returnValue = x.AES_128(input, key)
+#expected output is [57, 37, 132, 29, 2, 220, 9, 251, 220, 17, 133, 151, 25, 106, 11, 50]. which it should be.
+#Encryption works. Now to do decryption
+print(returnValue)
 
 # works
 
