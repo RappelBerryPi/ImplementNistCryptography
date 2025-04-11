@@ -260,6 +260,30 @@ class AES:
                       ]
         return outputArray              
 
+    # non algorithm defined, more like interface functions
+
+    def Encrypt(self, plaintext: bytes, key: bytes):
+        match len(key):
+            case 16:
+                return self.AES_128(plaintext, key)
+            case 24:
+                return self.AES_192(plaintext, key)
+            case 32:
+                return self.AES_256(plaintext, key)
+            case _:
+                raise KeyError("Invalid Key Size")
+
+    def Decrypt(self, ciphertext: bytes, key: bytes):
+        match len(key):
+            case 16:
+                return self.Inverse_AES_128(ciphertext, key)
+            case 24:
+                return self.Inverse_AES_192(ciphertext, key)
+            case 32:
+                return self.Inverse_AES_256(ciphertext, key)
+            case _:
+                raise KeyError("Invalid Key Size")
+
 
 
 
