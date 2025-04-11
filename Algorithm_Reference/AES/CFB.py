@@ -14,14 +14,30 @@ class CFB:
             raise ValueError("length of input must be exactly a multiple of {0}".format(self.blockSize))
         if (len(IV) != self.blockSize):
             raise ValueError("IV must be exactly {0} bytes long".format(self.blockSize))
+
+        lsb_bits = (self.blockSize*8) - size
+        msb_bits = (self.blockSize*8) - lsb_bits
         
         output = bytearray() 
-        input = IV
-        lsb_bits = self.blockSize - size
-        msb_bits = self.blockSize - lsb_bits
-        for i in range (0,len(input),16):
-            outblock = self.cipher.Encrypt(input, self.key)
+        input_block = IV
+        i = 0
+        while i < len(input):
+            bit_pointer = 0
+            plain_textblock = []
+            if (i+self.blockSize > len(input)):
+                plain_textblock = bytearray(input[i:])
+            else:
+                plain_textblock = bytearray(input[i:(i+16)])
+
+            output_block = self.cipher.Encrypt(input_block, self.key)
+            p_j = self.getNextBits(plain_textblock, bit_pointer, size)
+            MSB_j = self.MSB(output_block)
+            Cipher_Text_J = self.xorBlocks(p_j, MSB_j)
+            output.extend(Cipher_Text_J)
+
+
             # TODO: start here and finish. this is becoming harder than expected....
+            output_block = self.cipher.Encrypt(input_block, self.key)
             block = bytearray(input[i:(i+16)])
         return output
 
@@ -47,6 +63,9 @@ class CFB:
 
     def LSB(self, byte, s):
         return byte & self.LSBARRAY[s] 
+
+    def MSB(self, byte, s):
+        return byte & self.MSBARRAY[s] 
 
 
 if __name__ == "__main__":
