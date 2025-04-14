@@ -1,5 +1,5 @@
 import AES
-import os
+import Utils
 
 class CBC:
     def __init__(self, cipher, blockSize, key):
@@ -16,7 +16,7 @@ class CBC:
         output = bytearray() 
         for i in range (0,len(input),16):
             block = bytearray(input[i:(i+16)])
-            block = self.xorBlocks(block, IV)
+            block = Utils.xorBlocks(block, IV)
             newblock = self.cipher.Encrypt(block, self.key)
             output.extend(newblock)
             IV = newblock
@@ -32,15 +32,11 @@ class CBC:
         for i in range (0,len(input),16):
             block = bytearray(input[i:(i+16)])
             newblock = self.cipher.Decrypt(block, self.key)
-            newblock = self.xorBlocks(newblock, IV)
+            newblock = Utils.xorBlocks(newblock, IV)
             output.extend(newblock)
             IV = block
         return output
 
-    def xorBlocks(self, block1: bytearray, block2: bytearray):
-        for i in range(0, len(block1)):
-            block1[i] = block1[i] ^ block2[i]
-        return block1
 
 if __name__ == "__main__":
     # works wonderfully
@@ -65,12 +61,6 @@ if __name__ == "__main__":
     aes_cbc = CBC(cipher, 16, key)
     output = aes_cbc.Encrypt(plaintext, IV)
     output2 = aes_cbc.Decrypt(output, IV)
-    for o in plaintext:
-        print("{0:02x}".format(o),end='')
-    print()
-    for o in output:
-        print("{0:02x}".format(o),end='')
-    print()
-    for o in output2:
-        print("{0:02x}".format(o),end='')
-    print()
+    Utils.printByteArray(plaintext)
+    Utils.printByteArray(output)
+    Utils.printByteArray(output2)

@@ -1,5 +1,5 @@
 import AES
-import os
+import Utils
 
 class OFB:
     def __init__(self, cipher, blockSize, key):
@@ -16,25 +16,20 @@ class OFB:
         for i in range (0,len(input),16):
             output = self.cipher.Encrypt(input_block, self.key)
             plaintext_block = bytearray(input[i:(i+16)])
-            cipherText_Block = self.xorBlocks(plaintext_block, output)
+            cipherText_Block = Utils.xorBlocks(plaintext_block, output)
             input_block = output
             cipherText.extend(cipherText_Block)
         i += 16
         if (i < len(input)):
             output = self.cipher.Encrypt(input_block, self.key)
             plaintext_block = bytearray(input[i:])
-            cipherText_Block = self.xorBlocks(plaintext_block, output)
+            cipherText_Block = Utils.xorBlocks(plaintext_block, output)
             cipherText.extend(cipherText_Block)
         return cipherText 
 
     def Decrypt(self, input: bytes, IV: bytes):
         # take advantage of the fact that for OFB, we only need the forward cipher
         return self.Encrypt(input, IV)
-
-    def xorBlocks(self, block1: bytearray, block2: bytearray):
-        for i in range(0, len(block1)):
-            block1[i] = block1[i] ^ block2[i]
-        return block1
 
 if __name__ == "__main__":
     # works
@@ -68,12 +63,6 @@ if __name__ == "__main__":
     aes_OFB = OFB(cipher, 16, key)
     output = aes_OFB.Encrypt(plaintext, IV)
     output2 = aes_OFB.Decrypt(output, IV)
-    for o in plaintext:
-        print("{0:02x}".format(o),end='')
-    print()
-    for o in output:
-        print("{0:02x}".format(o),end='')
-    print()
-    for o in output2:
-        print("{0:02x}".format(o),end='')
-    print()
+    Utils.printByteArray(plaintext)
+    Utils.printByteArray(output)
+    Utils.printByteArray(output2)
