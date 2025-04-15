@@ -74,9 +74,11 @@ class XTS:
             raise ValueError("Unable to multiply. input block malformed")
         block = input_block.copy()
         for i in range(0, j):
-            block[0] = (2 * (block[0] % 128)) ^ (135 * math.floor(block[15] / 128))
+            new_block = block.copy()
+            new_block[0] = (2 * (block[0] % 128)) ^ (135 * math.floor(block[15] / 128))
             for k in range (1,16):
-                block[k] = (2 * (block[k] % 128) ) ^ (math.floor(block[k-1] / 128))
+                new_block[k] = (2 * (block[k] % 128) ) ^ (math.floor(block[k-1] / 128))
+            block = new_block.copy()
         return block
     
 
