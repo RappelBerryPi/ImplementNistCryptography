@@ -88,11 +88,9 @@ class GCM:
             Ghash_input.extend(bit_len_iv.to_bytes(8, byteorder="big"))
             J_0 = self.GHASH(H, Ghash_input)
 
-        #4
-        P = self.GTR(self.inc32(J_0), cipherText)
-
+        # reverse the authentication and the decryption. authentication is #5 -> #8. Decryption is #4.
+        # why decrypt and have that in memory before authenticating?
         #5
-
         # set u
         bit_len_C = len(cipherText) * 8
         u = math.ceil(bit_len_C / 128)
@@ -105,6 +103,7 @@ class GCM:
         v = v * 128
         v = v - bit_len_A
 
+        #6, 7, 8
         Ghash_input = associated_data.copy()
         Ghash_input.extend([0x00] * (v // 8)) # extend by the proper number of 0 blocks, this is 
         Ghash_input.extend(cipherText.copy())
@@ -115,6 +114,9 @@ class GCM:
         T = self.GTR(J_0.copy(), S)
         if (not Utils.isEqual(Tag, T)):
             raise ValueError("Invalid Tag computation")
+
+        #4
+        P = self.GTR(self.inc32(J_0), cipherText)
         return P
     
     def inc32(self, IV: bytearray):
