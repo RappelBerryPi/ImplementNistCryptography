@@ -19,6 +19,15 @@ def ShiftLeft(block: bytearray):
         new_block[i] = new_block[i] & 0xFF
     return new_block
 
+def ShiftRight(block: bytearray):
+    last_first_bit = 0
+    new_block = block.copy()
+    for i in range(0, len(new_block)):
+        first_bit = (new_block[i] & 0x01)
+        new_block[i]  = (new_block[i] >> 1) | (last_first_bit << 7)
+        last_first_bit = first_bit
+    return new_block
+
 def MSB(Block: bytearray, bits: int):
     block_size = len(Block) * 8
     shiftAmount = block_size - bits
