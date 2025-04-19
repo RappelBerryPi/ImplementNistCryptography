@@ -10,6 +10,12 @@ def xorBlocks(block1: bytearray, block2: bytearray):
         new_block[i] = block1[i] ^ block2[i]
     return new_block 
 
+def orBlocks(block1: bytearray, block2: bytearray):
+    new_block = block1.copy()
+    for i in range(0, len(block2)):
+        new_block[i] = block1[i] | block2[i]
+    return new_block 
+
 def ShiftLeft(block: bytearray):
     first_bit = 0
     new_block = block.copy()
@@ -40,12 +46,16 @@ def LSB(Block: bytearray, bits: int):
     andArray = bytearray(num.to_bytes(len(Block),byteorder="big"))
     return andBlocks(Block, andArray)
 
-def TruncateLeft(Block: bytearray):
+def TruncateLeft(Block: bytearray, count: int = -1):
     new_block = Block.copy()
-    value = new_block.pop()
-    while (value == 0):
+    if (count == -1):
         value = new_block.pop()
-    new_block.append(value)
+        while (value == 0):
+            value = new_block.pop()
+        new_block.append(value)
+    else:
+        for i in range(0, len(Block) - count):
+            new_block.pop()
     return new_block
 
 def TruncateRight(Block: bytearray):
