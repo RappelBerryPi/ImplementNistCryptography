@@ -4,6 +4,7 @@ def andBlocks(block1: bytearray, block2: bytearray):
         new_block[i] = block1[i] & block2[i]
     return new_block 
 
+#copying to SHA3. Ensure updated
 def xorBlocks(block1: bytearray, block2: bytearray):
     new_block = block1.copy()
     for i in range(0, len(block1)):
@@ -68,6 +69,7 @@ def TruncateRight(Block: bytearray):
     new_block = new_block[i:]
     return new_block
 
+#copying to SHA3. ensure updated.
 def printByteArray(byteArray: bytearray):
     for o in byteArray:
         print("{0:02x}".format(o),end='')
