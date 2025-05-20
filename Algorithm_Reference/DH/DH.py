@@ -31,7 +31,7 @@ class DH_Public_Key:
         self.y = pow(self.parameters.g, x, self.parameters.p)
     
 
-# setting up safeprimes once
+# setting up safeprimes once. Notice that these are TLS, NOT IPSEC / SSH
 safe_primes = []
 
 # 2048

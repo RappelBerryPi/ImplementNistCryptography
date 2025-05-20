@@ -549,17 +549,17 @@ class SHA2_Instance:
             return self.hash_512_256(M)
 
 
-
-x = SHA2_Instance(SHA2.SHA2_256)
-# string = b'Hello World'
-string = b'abc'
-# print(x.hash_256(string))
-# print(x.hash_224(string))
-print(x.hash(string))
-
-y = hashes.Hash(hashes.SHA256())
-y.update(string)
-print(y.finalize())
+if __name__ == "__main__":
+    x = SHA2_Instance(SHA2.SHA2_256)
+    # string = b'Hello World'
+    string = b'abc'
+    # print(x.hash_256(string))
+    # print(x.hash_224(string))
+    print(x.hash(string))
+    
+    y = hashes.Hash(hashes.SHA256())
+    y.update(string)
+    print(y.finalize())
 
 
 
