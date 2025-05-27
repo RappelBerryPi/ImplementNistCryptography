@@ -248,54 +248,45 @@ class SHA2_Instance:
 
     # 5.1.1
     def padMessage_256(self, M: bytes):
-        block_size_in_bytes = self.block_size // 8
         block_mod = 448
-        block_mod_bytes = block_mod // 8
+        l = len(M) * 8
+        # find k such that:  l + 1 + k == 448 (mod 512)
+        # this means that (l + 1 + k) mod 512 = 448
+        # to do this we know what l is, and we know that we're looking for 448. so we're either going to be 448 or
+        # (512*x) + 448
+        # to do this, we start with l + 1 and divide by 512 and then take the ceiling of that. 
+        # the answer will be 512* ciel((l + 1) / 512) + 448 - (l + 1)
 
-        l = len(M)
-        # find k such that:  l + 1 + k = 448 mod 512
-        # to reverse a mod operation, we mod (l + 1) by 512 and subtract that answer from 448
-        # k = 448 - ((l + 1) mod 512)
-        # since we're working in python and it's easier to work in bytes, we're going to set k up to be a byte string
-        # rather than a bit string, so it's going to be converted to bytes. Note that the +1 in this scenario is plus
-        # one byte, but that byte is specifically 0b1000_0000 (128 in unsigned, -128 in signed twos complement, or 0x80
-        # in hex)
-        # k = 56 - ((l + 1) mod 64)
-
-        k = block_mod_bytes - ((l + 1) % block_size_in_bytes)
-
+        import math
+        k = (512 * math.ceil((l + 1) / 512) + block_mod) - (l + 1)
+        while (k > 512):
+            k -= 512
+        k = k - 7
+        k = k // 8
         M = bytearray(M)
         M.append(0x80)
-        M.extend(b"\x00" * k)
-        l = l * 8 # need length in bits
+        M.extend(bytearray([0x00] * k))
         M.extend(l.to_bytes(8, "big"))
-
-        # print(len(M))
-        # print(block_size_in_bytes)
-        # print(M)
-
         return bytes(M)
+
 
     # 5.1.2
     # same as above, but for the bigger size
     # we could generalize this if we wanted to save room, but we're trying to copy the document
     def padMessage_512(self, M: bytes):
-        block_size_in_bytes = self.block_size // 8
         block_mod = 896 
-        block_mod_bytes = block_mod // 8
 
-        l = len(M)
-        k = block_mod_bytes - ((l + 1) % block_size_in_bytes)
+        l = len(M) * 8
+        import math
+        k = (1024 * math.ceil((l + 1) / 1024) + block_mod) - (l + 1)
+        while (k > 1024):
+            k -= 1024
+        k = k - 7
+        k = k // 8
         M = bytearray(M)
         M.append(0x80)
-        M.extend(b"\x00" * k)
-        l = l * 8 # need length in bits
-        M.extend(l.to_bytes(16, "big"))
-
-        # print(len(M))
-        # print(block_size_in_bytes)
-        # print(M)
-
+        M.extend(bytearray([0x00] * k))
+        M.extend(l.to_bytes(8, "big"))
         return bytes(M)
 
     # 5.2.1 & 5.2.2
@@ -549,6 +540,7 @@ class SHA2_Instance:
             return self.hash_512_256(M)
 
 
+
 if __name__ == "__main__":
     x = SHA2_Instance(SHA2.SHA2_256)
     # string = b'Hello World'
@@ -561,8 +553,5 @@ if __name__ == "__main__":
     y.update(string)
     print(y.finalize())
 
-
-
-
-# TODO: FINISH 224, 384, 512, 512/224, and 512/256
+    # TODO: FINISH 224, 384, 512, 512/224, and 512/256
 
