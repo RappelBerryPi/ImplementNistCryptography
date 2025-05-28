@@ -281,15 +281,46 @@ class RSA:
         return "valid signature"
     
     #8.2.1
-    def RSASSA_PKCS1_V1_5_SIGN(self, message: bytes):
-        #TODO: finish
-        pass
+    def RSASSA_PKCS1_V1_5_SIGN(self, hashFunction: SHA2.SHA2.SHA2, message: bytes):
+        #1
+        k = self.private_key.n.bit_length() // 8
+        EM = self.EMSA_PKCS1_V1_5_ENCODE(hashFunction, message, k)
+
+        #2.a.
+        m = self.OS2IP(EM)
+
+        #2.b.
+        s = self.RSASP1(m)
+
+        #2.c.
+        S = self.I2OSP(s, k)
+        return S
 
     #8.2.2
-    def RSASSA_PKCS1_V1_5_VERIFY(self, public_key: RSA_Public_Key, message: bytes, signature: bytes):
-        #TODO: finish
-        pass
+    def RSASSA_PKCS1_V1_5_VERIFY(self, hashFunction: SHA2.SHA2.SHA2, public_key: RSA_Public_Key, message: bytes, signature: bytes):
 
+        #1
+        k = public_key.n.bit_length() // 8
+        if (len(signature) != k):
+            raise ValueError("invalid signature")
+
+        #2.a.
+        s = self.OS2IP(signature)
+
+        #2.b. TODO: not catching error.
+        m = self.RSAVP1(s, public_key)
+
+        #2.c. TODO: not catching error.
+        EM = self.I2OSP(m, k)
+
+        #3
+        EM_prime = self.EMSA_PKCS1_V1_5_ENCODE(hashFunction, message, k)
+
+        #4
+        if (AES.Utils.isEqual(EM, EM_prime)):
+            return "valid signature"
+        else:
+            raise ValueError("invalid signature")
 
     #9.1.1
     def EMSA_PSS_ENCODE(self, message: bytes, emBits: int, hashFunction: SHA2.SHA2.SHA2, sLen: int = 20):
@@ -347,7 +378,7 @@ class RSA:
         #13
         return EM
 
-    #9.2.1
+    #9.1.2
     def EMSA_PSS_VERIFY(self, hashFunction: SHA2.SHA2.SHA2, message: bytes, EM: bytes, emBits: int, sLen: int = 20):
         emLen = math.ceil(emBits / 8)
         hlen = SHA2.SHA2.SHA2_Instance._SHA2_dictionary[hashFunction]["message_digest_size"] // 8
@@ -410,6 +441,41 @@ class RSA:
             raise ValueError("inconsistent")
         return "consistent"
 
+    def EMSA_PKCS1_V1_5_ENCODE(self, hashFunction: SHA2.SHA2.SHA2, message: bytes, emLen: int):
+        #1 TODO: not catching error
+        H = SHA2.SHA2.SHA2_Instance(hashFunction).hash(message)
+
+        #2
+        T_Values = {
+            SHA2.SHA2.SHA2.SHA2_224: bytearray([0x30, 0x2d, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04, 0x05, 0x00, 0x04, 0x1c]),
+            SHA2.SHA2.SHA2.SHA2_256: bytearray([0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20]),
+            SHA2.SHA2.SHA2.SHA2_384: bytearray([0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05, 0x00, 0x04, 0x30]),
+            SHA2.SHA2.SHA2.SHA2_512: bytearray([0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40]),
+            SHA2.SHA2.SHA2.SHA2_512_224: bytearray([0x30, 0x2d, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x05, 0x05, 0x00, 0x04, 0x1c]),
+            SHA2.SHA2.SHA2.SHA2_512_256: bytearray([0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x06, 0x05, 0x00, 0x04, 0x20]),
+        }
+
+        T = T_Values[hashFunction].copy()
+        T.extend(H)
+        tLen = len(T)
+
+        #3
+        if (emLen < tLen + 11):
+            raise ValueError("intended encoded message length too short")
+        
+        #4
+        PS = bytearray([0xff] * (emLen - tLen - 3))
+
+        #5
+        EM = bytearray([0x00])
+        EM.append(0x01)
+        EM.extend(PS)
+        EM.append(0x00)
+        EM.extend(T)
+        
+        #6
+        return EM
+
     #B.2.1
     def MGF1(self, hashFunction: SHA2.SHA2.SHA2, mgfSeed: bytes, maskLen: int):
         hlen = SHA2.SHA2.SHA2_Instance._SHA2_dictionary[hashFunction]["message_digest_size"] // 8
@@ -423,6 +489,9 @@ class RSA:
             input_byte_array.extend(C)
             T.extend(Hash.hash(input_byte_array))
         return T[0:maskLen]
+    
+    #TODO: implement RSAVE functions 7.2.1.2 and 7.2.1.3
+    #TODO: implement key generation in NIST SP 800-56b
 
 
     # helper function that vlidates the input sizes for all the primitives
@@ -546,3 +615,13 @@ if __name__ == "__main__":
     ##     mgf=padding.MGF1(algorithm=hashes.SHA256()),
     ##     salt_length=20
     ## ), hashes.SHA256())
+
+    # works
+    ## signature = private_key.sign(message, padding.PKCS1v15(), hashes.SHA256())
+    ## print(x.RSASSA_PKCS1_V1_5_VERIFY(SHA2.SHA2.SHA2.SHA2_256, x.public_key, message, signature))
+
+    # works
+    ## signature = x.RSASSA_PKCS1_V1_5_SIGN(SHA2.SHA2.SHA2.SHA2_256, message)
+    ## # changing message to uppercase "D" causes the signature to invalidate
+    ## #message = b"Data"
+    ## print(public_key.verify(signature, message, padding.PKCS1v15(), hashes.SHA256()))
