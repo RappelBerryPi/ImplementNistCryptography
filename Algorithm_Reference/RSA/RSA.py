@@ -1,6 +1,7 @@
 import sys
 import math
 import os
+import random
 
 sys.path.append("../")
 import SHA2.SHA2
@@ -493,11 +494,71 @@ class RSA:
     #TODO: implement RSAVE functions 7.2.1.2 and 7.2.1.3
     #TODO: implement key generation in NIST SP 800-56b
 
+    # NIST SP 800-56B 6.3.1.1
+    def RSAKPG1_basic(self, strength: int, nBits: int, e: int):
+        #1.a
+        if (strength < 112 or strength > 256):
+            raise ValueError("strength is not acceptable")
+        
+        if (strength > self.ES(nBits)):
+            raise ValueError("modulus length is not acceptable for strength")
+        
+        if (e % 2 == 0 or (e < 65537) or (e > (2**256) - 1)):
+            return ValueError("exponent out of range")
+        
+        loop = True
+        #2
+        while (loop):
+            #TODO: generate p and q in compliance with FIPS 186
+            p, q = self.generatePandQ()
+    
+            #3
+            d = self.mod_inv(e, n) % math.lcm(p - 1, q - 1)
+            if (d >= 2**(nBits // 2)):
+                loop = False
+
+        #4
+        n = p * q
+        
+        #5
+        m = random.randint(1, n - 1)
+
+        m_prime = pow(m, e, n)
+        m_prime = pow(m_prime, d, n)
+        if (m_prime == m):
+            raise ValueError("Pair-Wise Consistancy Test Failure")
+        
+        #6
+        self.public_key.e = e
+        self.public_key.n = n
+        self.private_key.d = d
+        self.private_key.n = n
+    
+    def mod_inv(self, exponent: int, modulus: int):
+        pass
+
+    def generatePandQ(self, modulus: int):
+        pass
+
 
     # helper function that vlidates the input sizes for all the primitives
     def check_input_size(self, message_or_ciphertext: int, n: int):
         if (message_or_ciphertext < 0 or message_or_ciphertext > n - 1):
             raise ValueError("message representative out of range")
+
+    # NIST SP 800-56B Table 2 and functions. Estimated Security Strength of Modulus Size.
+    def ES(self, modulus_length: int):
+        if (modulus_length < 3072):
+            return 112
+        if (modulus_length < 4096):
+            return 128
+        if (modulus_length < 6144):
+            return 152
+        if (modulus_length < 8192):
+            return 176
+        if (modulus_length >= 8192):
+            return 200
+
 
 if __name__ == "__main__":
 
