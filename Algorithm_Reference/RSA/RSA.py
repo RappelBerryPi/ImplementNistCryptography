@@ -510,11 +510,11 @@ class RSA:
         #2
         while (loop):
             #TODO: generate p and q in compliance with FIPS 186
-            p, q = self.generatePandQ()
+            p, q = self.generatePandQ(nBits, e)
     
             #3
             d = self.mod_inv(e, n) % math.lcm(p - 1, q - 1)
-            if (d >= 2**(nBits // 2)):
+            if (d > 2**(nBits // 2)):
                 loop = False
 
         #4
@@ -537,9 +537,75 @@ class RSA:
     def mod_inv(self, exponent: int, modulus: int):
         pass
 
-    def generatePandQ(self, modulus: int):
+    # FIPS 186-5 5.1 and A.1. Going with option A. to generate P and Q as primes, not the ones with conditions. WOuld
+    # prefer to generate provable primes over probable primes.
+    def generatePandQ(self, nlen: int, e: int):
         pass
 
+
+    # FIPS 186-5 A.1.2.1
+    def getSeed(self, nlen: int):
+        #1 (section 5.1 constraint)
+        if (nlen < 2048):
+            raise ValueError("Failure")
+        #2 
+        security_strength = self.ES(nlen)
+
+        #3
+        seed = os.urandom(2 * security_strength)
+        return seed
+
+    #FIPS 186-5 A.1.2.2
+    def generateProvablePrime(self, nlen: int, e: int, seed: bytes):
+        #1
+        if (nlen < 2058):
+            raise ValueError("FAILURE")
+
+        #2
+        if (e % 2 == 0 or (e < 65537) or (e > (2**256) - 1)):
+            return ValueError("FAILURE")
+
+        #3 
+        security_strength = self.ES(nlen)
+
+        #4
+        if (len(seed) < (2 * security_strength)):
+            return ValueError("FAILURE")
+        
+        #5
+        working_seed = bytearray(seed).copy()
+
+        #6 generate p
+        #6.1
+        L = nlen//2
+        N1 = 1
+        N2 = 1
+        first_seed = working_seed.copy()
+
+        # this function raises an exception and as such does not need to be caught. 
+        self.provable_prime_construction(L, N1, N2, first_seed, e)
+    
+
+    def provable_prime_construction(self, L: int, N1: int, N2: int, first_seed: bytearray, e: int):
+        #1 (skipping as all input is forced and would be acceptable)
+        #2
+        if (N1 == 1):
+            P1 = 1
+            P2_seed = first_seed.copy()
+        #3
+        else:
+            # not implementing
+            raise ValueError("Failure")
+
+        #4
+        if (N2 == 1):
+            P2 = 1
+            P0_seed = P2_seed.copy()
+        #5
+        else:
+            # not implementing
+            raise ValueError("Failure")
+        
 
     # helper function that vlidates the input sizes for all the primitives
     def check_input_size(self, message_or_ciphertext: int, n: int):
