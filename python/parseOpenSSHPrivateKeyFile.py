@@ -32,10 +32,10 @@ def parseOpenSSHPrivateKeyFile(filename: str):
     print(f"Check Digit: {check_digit1}")
     
     key_information, next = get_public_key(content, next)
-    print(f"Key type: {key_information['key_type']}")
+    print(f"public Key type: {key_information['key_type']}")
     if (key_information['key_type'] == "ssh-rsa"):
-        print(f"public exponent: {key_information['e']}")
-        print(f"modulus: {key_information['n']}")
+        print(f"\tpublic exponent: {format_int(key_information['e'])}")
+        print(f"\tmodulus: {format_int(key_information['n'])}")
 
     check_digit2, next = get_check_digit(content, next)
     print(f"Check Digit: {check_digit2}")
@@ -47,15 +47,27 @@ def parseOpenSSHPrivateKeyFile(filename: str):
     print(f"Check Digit: {check_digit4}")
 
     key_information, next = get_private_key(content, next)
-    print(f"Private Key info: {key_information}")
+    print(f"Private Key type: {key_information['key_type']}")
+    if (key_information['key_type'] == "ssh-rsa"):
+        print(f"\tmodulus: {format_int(key_information['n'])}")
+        print(f"\tpublic exponent: {format_int(key_information['e'])}")
+        print(f"\tprivate exponent: {format_int(key_information['d'])}")
+        print(f"\tInverse of q modulus p: {format_int(key_information['iqmp'])}")
+        print(f"\tP: {format_int(key_information['p'])}")
+        print(f"\tq: {format_int(key_information['q'])}")
 
     comment, next = get_comment(content, next)
 
-    # check_padding(content, next)
+    print(f"Comment: {comment}")
 
-    print(content[next:])
-    
+    check_padding(content, next)
 
+def format_int(num: int, max_len: int = 10):
+    s = str(num)
+    if (len(s) > max_len):
+        return s[0:max_len] + "..."
+    else:
+        return s
 
 def get_header(content: bytes):
     # get header
@@ -99,30 +111,28 @@ def get_private_key(content: bytes, start: int):
     # ECDSA-sha2-* -> rfc 5656
     # ed25519 -> I-D.ietf-curdle-ssh-ed25519
     # mpint defined in 4251 as a 4 byte length with the next x bytes being transformed into the key value.
+    # private key format defined in draft-miller-ssh-agent-04 (https://datatracker.ietf.org/doc/html/draft-miller-ssh-agent-04)
     key_type, next = get_string_with_len(content, start)
 
     if (key_type == "ssh-rsa"):
         n, next = get_mpint(content, next)
         e, next = get_mpint(content, next)
         d, next = get_mpint(content, next)
-        x, next = get_mpint(content, next)
+        iqmp, next = get_mpint(content, next)
         p, next = get_mpint(content, next)
         q, next = get_mpint(content, next)
-        print(f"modulus: {n}")
-        print(f"public exponent: {e}")
-        print(f"private exponent: {d}")
-        #TODO: figure out
-        print(f"??: {x}")
-        print(f"P: {p}")
-        print(f"q: {q}")
-        #n, next = get_mpint(content, next)
-        #key_info = dict( key_type = key_type, e = e, n = n)
-        return key_type, next
+        key_info = dict( key_type = key_type, e = e, n = n, d = d, iqmp = iqmp, p = p, q = q)
+        return key_info, next
     else:
         raise Exception("not Implemented")
     
 def get_comment(content: bytes, start: int):
     return get_string_with_len(content, start)
+
+def check_padding(content:bytes, start: int):
+    if (content[start: start + 3] != bytes([0x01, 0x02, 0x03])):
+        print(content[start: start + 3])
+        raise Exception("Padding is not correct")
 
 
 #private
@@ -146,14 +156,6 @@ def get_int(content: bytes, start: int):
     return str_length, finish_len
     
 
-    
-
-
-
-
-
-
-
 
 
 if __name__ == "__main__":
@@ -161,6 +163,11 @@ if __name__ == "__main__":
     # id_rsa_clear
     # no passphrase
     filename = "C:\\Users\\leppa\\.ssh\\id_rsa_clear"
+
+    # ssh-keygen -t rsa -b 4096 
+    # id_rsa_clear_2
+    # no passphrase
+    filename = "C:\\Users\\leppa\\.ssh\\id_rsa_clear_2"
     parseOpenSSHPrivateKeyFile(filename)
 
 
