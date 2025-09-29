@@ -54,16 +54,31 @@ def parseOpenSSHPrivateKeyFile(filename: str):
         print(f"\tpublic key (y): {format_int(key_information['point_y'])}")
     if (key_information['key_type'] == "ssh-ed25519"):
         print(f"\tencoded public key: {key_information['public_key']}")
+    if (key_information['key_type'] == "sk-ssh-ed25519@openssh.com"):
+        print(f"\tencoded public key: {key_information['public_key']}")
 
     private_key_length, next = get_private_key_length(content, next)
     print(f"private_key_length: {private_key_length}")
 
-    if (kdf_type != "none"):
-        c = Cipher(algorithms.AES256(key_value[0:32]), modes.CTR(key_value[32:]))
-        decryptor = c.decryptor()
-        content_2 = decryptor.update(content[next:]) + decryptor.finalize()
-        content = content_2
-        next = 0
+    if (key_information['key_type'] == "sk-ssh-ed25519@openssh.com"):
+        ssh_string = content[next:next + 4].decode('utf-8')
+        # TODO: why?
+        next += 4
+        value, next = get_bytes_with_len(content, next)
+        if (kdf_type != "none"):
+            c = Cipher(algorithms.AES256(key_value[0:32]), modes.CTR(key_value[32:]))
+            decryptor = c.decryptor()
+            content_2 = decryptor.update(value) + decryptor.finalize()
+            content = content_2
+            next = 0
+            # TODO: why?
+    else:
+        if (kdf_type != "none"):
+            c = Cipher(algorithms.AES256(key_value[0:32]), modes.CTR(key_value[32:]))
+            decryptor = c.decryptor()
+            content_2 = decryptor.update(content[next:]) + decryptor.finalize()
+            content = content_2
+            next = 0
 
     check_digit, next = get_check_digit(content, next)
     print(f"Check Digit: {check_digit}")
@@ -96,11 +111,17 @@ def parseOpenSSHPrivateKeyFile(filename: str):
         print(f"\tcurve: {key_information['curve_name']}")
         print(f"\tpublic key (X): {format_int(key_information['point_x'])}")
         print(f"\tpublic key (y): {format_int(key_information['point_y'])}")
-        print(f"\id: {key_information['id']}")
-        print(f"\other??: {key_information['other']}")
+        print(f"\tid: {key_information['id']}")
+        print(f"\thandle: {key_information['sk_handle']}")
+        print(f"\tflags: {key_information['sk_flags']}")
+    elif (key_information['key_type'] == "sk-ssh-ed25519@openssh.com"):
+        print(f"\tencoded public key: {key_information['public_key']}")
+        print(f"\tid: {key_information['id']}")
+        print(f"\thandle: {key_information['sk_handle']}")
+        print(f"\tflags: {key_information['sk_flags']}")
     else:
         raise Exception("not implemented")
-
+    
     comment, next = get_comment(content, next)
 
     print(f"Comment: {comment}")
@@ -165,11 +186,12 @@ def get_public_key(content: bytes, start: int):
             id, next = get_string_with_len(content, next)
         key_info = dict(key_type = key_type, curve_name = curve_name, point_x = point_x, point_y = point_y)
         return key_info, next
-    elif (key_type == "ssh-ed25519"):
+    elif (key_type == "ssh-ed25519" or key_type == "sk-ssh-ed25519@openssh.com"):
         public_key, next = get_bytes_with_len(content, next)
         key_info = dict(key_type = key_type, public_key = public_key)
         return key_info, next
     else:
+        print(key_type)
         print(content[next:])
         raise Exception("not Implemented")
 
@@ -208,6 +230,15 @@ def get_private_key(content: bytes, start: int):
             raise Exception("public key values do not match (see encoding)")
         key_info = dict(key_type = key_type, public_key = public_key, private_key = private_key_bytes)
         return key_info, next
+    elif (key_type == "sk-ssh-ed25519@openssh.com"):
+        public_key, next = get_bytes_with_len(content, next)
+        id, next = get_string_with_len(content, next)
+        flags = content[next]
+        next +=1 
+        handle, next = get_bytes_with_len(content, next)
+        reserved, next = get_int(content, next)
+        key_info = dict(key_type = key_type, public_key = public_key, id = id, sk_flags = flags, sk_handle = handle)
+        return key_info, next
     elif (key_type.startswith("sk-ecdsa-sha2-")):
         curve_name, next = get_string_with_len(content, next)
         point, next = get_bytes_with_len(content, next)
@@ -215,13 +246,11 @@ def get_private_key(content: bytes, start: int):
         point_x = int.from_bytes(point[1:point_len + 1])
         point_y = int.from_bytes(point[point_len + 1:])
         id, next = get_string_with_len(content, next)
-        constraint_type = content[next]
+        flags = content[next]
         next +=1 
-        if (constraint_type == 0x01):
-            lifetime, next = get_bytes_with_len(content, next)
-            print("TODO: ???") #TODO
-        next += 4 # skip 4 chars.
-        key_info = dict( key_type = key_type, point_x = point_x, point_y = point_y, curve_name = curve_name, id = id, other = lifetime )
+        handle, next = get_bytes_with_len(content, next)
+        reserved, next = get_int(content, next)
+        key_info = dict(key_type = key_type, point_x = point_x, point_y = point_y, curve_name = curve_name, id = id, sk_flags = flags, sk_handle = handle)
         return key_info, next
     else:
         print(content[next:])
@@ -231,7 +260,6 @@ def get_comment(content: bytes, start: int):
     return get_string_with_len(content, start)
 
 def check_padding(content:bytes, start: int):
-
     len_content = len(content)
     padding_value = 0x01
     while (start < len_content):
@@ -275,79 +303,71 @@ def get_int(content: bytes, start: int):
 
 
 if __name__ == "__main__":
+    filenames = []
+
     # ssh-keygen -t rsa -b 2048
     # id_rsa_clear
     # no passphrase
     filename = "C:\\Users\\leppa\\.ssh\\id_rsa_clear"
+    filenames.append(filename)
 
     # ssh-keygen -t rsa -b 4096 
     # id_rsa_clear_2
     # no passphrase
     filename = "C:\\Users\\leppa\\.ssh\\id_rsa_clear_2"
+    filenames.append(filename)
 
     # ssh-keygen -t rsa -b 4096 
     # id_rsa_enc
     # "password"
     filename = "C:\\Users\\leppa\\.ssh\\id_rsa_enc"
+    filenames.append(filename)
 
     # ssh-keygen -t ecdsa -b 256
     # id_ecdsa_clear
     # no passphrase
     filename = "C:\\Users\\leppa\\.ssh\\id_ecdsa_clear"
+    filenames.append(filename)
 
     # ssh-keygen -t ecdsa -b 256
     # id_ecdsa_enc
     # "password"
     filename = "C:\\Users\\leppa\\.ssh\\id_ecdsa_enc"
+    filenames.append(filename)
 
     # ssh-keygen -t ecdsa -b 521
     # id_ecdsa_clear_2
     # no passphrase
     filename = "C:\\Users\\leppa\\.ssh\\id_ecdsa_clear_2"
+    filenames.append(filename)
 
     # ssh-keygen -t ed25519
     # id_ed25519_clear
     # no passphrase
     filename = "C:\\Users\\leppa\\.ssh\\id_ed25519_clear"
+    filenames.append(filename)
 
     # ssh-keygen -t ed25519
     # id_ed25519_enc
     # "password" 
     filename = "C:\\Users\\leppa\\.ssh\\id_ed25519_enc"
+    filenames.append(filename)
 
     # ssh-keygen -t ecdsa-sk -b 256
-    # id_ecdsa_enc
+    # id_ecdsa_sk_pin
     # no passphrase 
     filename = "C:\\Users\\leppa\\.ssh\\id_ecdsa_sk_pin"
-    parseOpenSSHPrivateKeyFile(filename)
+    filenames.append(filename)
+
+    # ssh-keygen -t ed25519-sk -b 256
+    # id_ecdsa_sk_pin_enc
+    # "password"
+    filename = "C:\\Users\\leppa\\.ssh\\id_ed25519_sk_pin_enc"
+    filenames.append(filename)
+
+    for file in filenames:
+        parseOpenSSHPrivateKeyFile(file)
 
 
 
 # from https://www.openssh.com/specs.html (https://cvsweb.openbsd.org/src/usr.bin/ssh/PROTOCOL.key?annotate=HEAD)
-
-## 1. Overall format
-##                       4:
-##                       5: The key consists of a header, a list of public keys, and
-##                       6: an encrypted list of matching private keys.
-##                       7:
-##                       8: #define AUTH_MAGIC      "openssh-key-v1"
-##                       9:
-##                      10:        byte[]  AUTH_MAGIC
-##                      11:        string  ciphername
-##                      12:        string  kdfname
-##                      13:        string  kdfoptions
-## 1.3       djm        14:        uint32  number of keys N
-## 1.1       markus     15:        string  publickey1
-##                      16:        string  publickey2
-##                      17:        ...
-##                      18:        string  publickeyN
-##                      19:        string  encrypted, padded list of private keys
-##                      20:
-##                      21: 2. KDF options for kdfname "bcrypt"
-##                      22:
-##                      23: The options:
-##                      24:
-##                      25:        string salt
-##                      26:        uint32 rounds
-##                      27:
-##                      28: are concatenated and represented as a string.
