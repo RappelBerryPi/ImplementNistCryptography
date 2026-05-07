@@ -1,9 +1,15 @@
 from enum import Enum
+from array import array
+import sys
 sys.path.append("../")
 import SHA3.IncrementalSHAKE
 import SHA3.SHA_3
+import SHA3.Keccak
 
-class ML_KEM_PARAMETER_SET:
+
+#NOTE: BYTEARRAY will NOT WORK, THIS MUST BE A LIST OF INT because bytearray only takes numbers up to 256
+
+class ML_KEM_PARAMETER_SET(Enum):
     ML_KEM_512 = 1
     ML_KEM_768 = 2
     ML_KEM_1024 = 3
@@ -106,9 +112,8 @@ class ML_KEM:
     # to put it into laymans terms:
     # +  This is a 256 integer array, of numbers ranging from 0 to m.
     # +  m has to be 2 to the "dth" power, and d has to be between 1 and 12. 
-    def ByteEncode(self, F: bytearray, d: int):
-        b = list[]
-        m = 2**d # TODO: check if m need to be implemented
+    def ByteEncode(self, F: array[int], d: int):
+        b = list()
         for i in range (0, 256):
             a = F[i]
             # this operation essentially encodes each integer into a bit array in reverse order.
@@ -116,27 +121,47 @@ class ML_KEM:
             # this would encode it so the array ends up being b = [0, 1, 0, 1]
             # same for 128, in binary it's "0b1000 0000".
             # the array would end up encoded as b = [0, 0, 0, 0, 0, 0, 0, 1]
-            for j in range(0, d):
-                b[i * d + j] = bool(a % 2)
-                a = (a - int(b[i * d + j])) / 2
+            # original:
+            # for j in range(0, d):
+            #     index = i * d + j
+            #     b[index] = bool(a % 2)
+            #     # a = (a - int(b[index])) // 2 # modification from actual algorithm that does a division. bitwise
+            #     shift right by 1 is slightly faster and should result in exactly the same outcome
+            # speedier:
+            for _ in range(0, d):
+                b.append(bool(a % 2))
+                a = a >> 1 # modification from actual algorithm that does a division as above comment. it's subtracting and then dividing, which is the same as a bitshift with the last bit underflowing.
         B = self.BitsToBytes(b)
         return B
 
     # algorithm 6
     def ByteDecode(self, B: bytearray, d: int):
         b = self.BytesToBits(B)
-        F = []
-        m = 2**d
+        F = array("I") # array of unsigned ints, because 
+        if (d == 12):
+            m = self.q
+        else:
+            m = 2**d
+        # original
+        # for i in range(0, 256):
+        #     temp = 0
+        #     for j in range(0, d):
+        #         temp = temp + (b[i * d + j] * pow(2, j, m))
+        #     F.append(temp)
+        # improved
         for i in range(0, 256):
-            F[i] = 0
-            for j in range(0, d):
-                F[i] = F[i] + (b[i * d + j] * pow(2, j, m))
+            temp = 0
+            # loop backwards
+            for j in range(((i + 1) * d) - 1, i * d, -1):
+                temp = (temp | b[j]) << 1
+            temp = (temp | b[i * d]) % m
+            F.append(temp)
         return F
 
     # algorithm 7
     def SampleNTT(self, B: bytearray):
         # outputArray = a (Hat)
-        outputArray = bytearray()
+        outputArray = array("I")
         XOF = SHA3.IncrementalSHAKE.IncrementalSHAKE128()
         ctx = XOF.init()
         ctx = XOF.absorb(ctx, B)
@@ -155,7 +180,7 @@ class ML_KEM:
     
     # algorithm 8
     def SamplePolyCBD(self, B: bytearray, Nu: int):
-        f = bytearray()
+        f = array("I")
 
         b = self.BytesToBits(B)
         for i in range(0, 256):
@@ -166,6 +191,8 @@ class ML_KEM:
                 y = y + b[2 * i * Nu + Nu + j]
             f.append((x - y) % self.q)
         return f
+
+    # TODO: start here and continue converting bytearray to array("I")
     
     # algorithm 9
     def NTT(self, f: bytearray):
@@ -307,9 +334,6 @@ class ML_KEM:
 
 
 
-
-
-def addByteArray
 
 
 def PRF(s: bytearray, b: int, Nu: int):

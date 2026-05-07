@@ -1,4 +1,6 @@
-import Keccak 
+import sys
+sys.path.append("../")
+import SHA3.Keccak 
 from abc import ABC, abstractmethod
 
 class sha3_base(ABC):

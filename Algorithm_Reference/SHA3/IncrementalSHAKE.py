@@ -1,5 +1,7 @@
 from enum import Enum
-import Keccak
+import sys
+sys.path.append("../")
+import SHA3.Keccak
 
 # Thanks FIPS 203
 
@@ -26,12 +28,12 @@ class KnownEncodings(Enum):
 
 class IncrementalSHAKE128:
     def __init__(self):
-        self.SHA3 = Keccak.SHA3(1600)
+        self.SHA3 = SHA3.Keccak.SHA3(1600)
     
     def init(self):
         return ShakeContext()
     
-    def absorb(self, ctx: ShakeContext, input: str, encoding: KnownEncodings = KnownEncodings.UTF8):
+    def absorbStr(self, ctx: ShakeContext, input: str, encoding: KnownEncodings = KnownEncodings.UTF8):
         if (ctx.squeezeCalledPreviously):
             raise RuntimeError("Absorb is not able to be called after calling squeeze")
         return self.absorb(ctx, bytearray(input, encoding.value))
@@ -75,7 +77,7 @@ class IncrementalSHAKE128:
 if __name__ == "__main__":
     XOF = IncrementalSHAKE128()
     ctx = XOF.init()
-    ctx = XOF.absorb(ctx, "abc")
+    ctx = XOF.absorbStr(ctx, "abc", KnownEncodings.UTF8)
     ctx, output = XOF.squeeze(ctx, 1000)
     ctx, output = XOF.squeeze(ctx, 3)
     print(output)
