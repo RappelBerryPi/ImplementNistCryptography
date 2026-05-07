@@ -106,7 +106,7 @@ class ML_KEM:
     # to put it into laymans terms:
     # +  This is a 256 integer array, of numbers ranging from 0 to m.
     # +  m has to be 2 to the "dth" power, and d has to be between 1 and 12. 
-    def ByteEncode(self, F: list[int], d: int):
+    def ByteEncode(self, F: bytearray, d: int):
         b = list[]
         m = 2**d # TODO: check if m need to be implemented
         for i in range (0, 256):
@@ -225,7 +225,7 @@ class ML_KEM:
         d_copy = d.copy()
         d_copy.append(self.k)
         ro_sigma = G(d_copy)
-        ro = ro_sigma[0:32]
+        rho = ro_sigma[0:32]
         sigma = ro_sigma[32:]
 
         #2
@@ -260,12 +260,56 @@ class ML_KEM:
             e_hat.append(self.NTT(e[i]))
         
         #18
-        #TODO
+        t_temp = self.MultMatrixAndVector(A_hat, s_hat)
+        t_hat = self.AddVectors(t_temp, e_hat)
+
+        # 19
+        ek_pke = bytearray()
+        for i in range(0, self.k):
+            ek_pke.extend(self.ByteEncode(t_hat[i], 12))
+        ek_pke.extend(rho)
+
+        #20
+        dk_pke = bytearray()
+        for i in range(0, self.k):
+            dk_pke.extend(self.ByteEncode(s_hat[i], 12))
+        return ek_pke,dk_pke
+
+    # helper functions
+
+    # 2.12
+    def MultMatrixAndVector(self, A_hat: list[list[bytearray]], s_hat: list[bytearray]):
+        w_hat = list()
+        for i in range(0, len(A_hat)):
+            w_current = bytearray(256)
+            for j in range(0, self.k):
+                w_temp = self.MultiplyNTTs(A_hat[i][j],s_hat[j])
+                w_current = self.AddRing(w_current, w_temp)
+            w_hat.append(w_current)
+        return w_hat
+
+    # 2.11
+    def AddVectors(self, t_hat: list[bytearray], e_hat: list[bytearray]):
+        # make the assumption that they're the same length... maybe check for length error here
+        returnList = list()
+        for i in range(0, len(t_hat)):
+            returnList.append(self.AddRing(t_hat[i], e_hat[i]))
+        return returnList
+
+    # 2.11 (part 2)
+    def AddRing(self, entry1: bytearray, entry2: bytearray):
+        returnArray = bytearray()
+        # make the assumption that they're the same length... maybe check for length error here
+        for i in range(0, len(entry1)):
+            returnArray.append((entry1[i] + entry2[i]) % self.q)
+        return returnArray
 
 
 
 
 
+
+def addByteArray
 
 
 def PRF(s: bytearray, b: int, Nu: int):
