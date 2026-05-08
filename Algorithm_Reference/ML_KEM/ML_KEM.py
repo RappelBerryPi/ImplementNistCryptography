@@ -1,10 +1,10 @@
 from enum import Enum
 from array import array
+import copy
 import sys
 sys.path.append("../")
 import SHA3.IncrementalSHAKE
 import SHA3.SHA_3
-import SHA3.Keccak
 
 
 #NOTE: BYTEARRAY will NOT WORK, THIS MUST BE A LIST OF INT because bytearray only takes numbers up to 256
@@ -21,8 +21,8 @@ class ML_KEM:
             "n": 256,
             "q": 3329,
             "k": 2,
-            "Nu1": 3,
-            "Nu2": 2,
+            "Eta1": 3,
+            "Eta2": 2,
             "d_u": 10,
             "d_v": 4,
             "requiredRBG": 128
@@ -31,18 +31,18 @@ class ML_KEM:
             "n": 256,
             "q": 3329,
             "k": 3,
-            "Nu1": 2,
-            "Nu2": 2,
+            "Eta1": 2,
+            "Eta2": 2,
             "d_u": 10,
             "d_v": 4,
             "requiredRBG": 192
         },
-        ML_KEM_PARAMETER_SET.ML_KEM_512: {
+        ML_KEM_PARAMETER_SET.ML_KEM_1024: {
             "n": 256,
             "q": 3329,
             "k": 4,
-            "Nu1": 2,
-            "Nu2": 2,
+            "Eta1": 2,
+            "Eta2": 2,
             "d_u": 11,
             "d_v": 5,
             "requiredRBG": 256
@@ -65,9 +65,10 @@ class ML_KEM:
     def __init__(self, parameterSet: ML_KEM_PARAMETER_SET):
         self.n = self._MLKEM_dictionary[parameterSet]["n"]
         self.q = self._MLKEM_dictionary[parameterSet]["q"]
+        self.q_div_2 = self.q // 2
         self.k = self._MLKEM_dictionary[parameterSet]["k"]
-        self.Nu1 = self._MLKEM_dictionary[parameterSet]["Nu1"]
-        self.Nu2 = self._MLKEM_dictionary[parameterSet]["Nu2"]
+        self.Eta1 = self._MLKEM_dictionary[parameterSet]["Eta1"]
+        self.Eta2 = self._MLKEM_dictionary[parameterSet]["Eta2"]
         self.d_u = self._MLKEM_dictionary[parameterSet]["d_u"]
         self.d_u = self._MLKEM_dictionary[parameterSet]["d_u"]
         self.d_v = self._MLKEM_dictionary[parameterSet]["d_v"]
@@ -179,24 +180,24 @@ class ML_KEM:
         return outputArray
     
     # algorithm 8
-    def SamplePolyCBD(self, B: bytearray, Nu: int):
+    def SamplePolyCBD(self, B: bytearray, Eta: int):
         f = array("I")
 
         b = self.BytesToBits(B)
         for i in range(0, 256):
             x = 0
             y = 0
-            for j in range(0, Nu):
-                x = x + b[2 * i * Nu + j]
-                y = y + b[2 * i * Nu + Nu + j]
+            index = 2 * i * Eta
+            for j in range(0, Eta):
+                x = x + b[index + j]
+                y = y + b[index + Eta + j]
             f.append((x - y) % self.q)
         return f
 
-    # TODO: start here and continue converting bytearray to array("I")
     
     # algorithm 9
-    def NTT(self, f: bytearray):
-        f_hat = f.copy()
+    def NTT(self, f: array[int]):
+        f_hat = copy.deepcopy(f)
         i = 1
         l = 128
         while l >= 2:
@@ -205,16 +206,16 @@ class ML_KEM:
                 zeta = ML_KEM.ZETA_ARRAY[i]
                 i = i + 1
                 for j in range(start, start + l):
-                    t = (zeta * f[j + l]) % self.q
-                    f_hat[j + l] = (f[j] - t) % self.q
-                    f[j] = (f_hat[j] + t) % self.q
+                    t = (zeta * f_hat[j + l]) % self.q
+                    f_hat[j + l] = (f_hat[j] - t) % self.q
+                    f_hat[j] = (f_hat[j] + t) % self.q
                 start = start + 2 * l
-            l = l / 2
+            l = l // 2
         return f_hat
     
     # algorithm 10
-    def Inverse_NTT(self, f_hat: bytearray):
-        f = f_hat.copy()
+    def Inverse_NTT(self, f_hat: array[int]):
+        f = copy.deepcopy(f_hat)
         i = 127
         l = 2
         while l <= 128:
@@ -222,7 +223,7 @@ class ML_KEM:
             while start < 256:
                 zeta = ML_KEM.ZETA_ARRAY[i]
                 i = i - 1
-                for j in range(0, start + l):
+                for j in range(start, start + l):
                     t = f[j]
                     f[j] = (t + f[j + l]) % self.q
                     f[j + l] = (zeta * (f[j + l] - t)) % self.q
@@ -234,11 +235,11 @@ class ML_KEM:
         return f
     
     # algorithm 11
-    def MultiplyNTTs(self, f: bytearray, g: bytearray):
-        h_hat = bytearray()
+    def MultiplyNTTs(self, f: array[int], g: array[int]):
+        h_hat = array("I")
         for i in range(0, 128):
             h_hat.extend(self.BaseCaseMultiply(f[2*i], f[2*i + 1], g[2*i], g[2*i + 1], ML_KEM.ZETA_PLUS1_ARRAY[i]))
-        pass
+        return h_hat
 
     # algorithm 12
     def BaseCaseMultiply(self, a_0: int, a_1: int, b_0: int, b_1: int, gamma: int):
@@ -251,9 +252,9 @@ class ML_KEM:
         # 1
         d_copy = d.copy()
         d_copy.append(self.k)
-        ro_sigma = G(d_copy)
-        rho = ro_sigma[0:32]
-        sigma = ro_sigma[32:]
+        rho_sigma = G(d_copy)
+        rho = rho_sigma[0:32]
+        sigma = rho_sigma[32:]
 
         #2
         N = 0
@@ -263,20 +264,20 @@ class ML_KEM:
         for i in range(0, self.k):
             A_hat.append(list())
             for j in range(0, self.k):
-                sigma_copy = sigma.copy()
-                sigma_copy.extend((i, j))
-                A_hat[i].append(self.SampleNTT(sigma_copy))
+                rho_copy = rho.copy()
+                rho_copy.extend((i, j))
+                A_hat[i].append(self.SampleNTT(rho_copy))
         
         #8 - 11
         s = list()
         for i in range(0, self.k):
-            s.append(self.SamplePolyCBD(PRF(sigma, N, self.Nu1), self.Nu1))
+            s.append(self.SamplePolyCBD(PRF(sigma, N, self.Eta1), self.Eta1))
             N = N + 1
 
         #12 - 15
         e = list()
         for i in range(0, self.k):
-            e.append(self.SamplePolyCBD(PRF(sigma, N, self.Nu1), self.Nu1))
+            e.append(self.SamplePolyCBD(PRF(sigma, N, self.Eta1), self.Eta1))
             N = N + 1
         
         #16 - 17
@@ -285,7 +286,7 @@ class ML_KEM:
         for i in range(0, self.k):
             s_hat.append(self.NTT(s[i]))
             e_hat.append(self.NTT(e[i]))
-        
+
         #18
         t_temp = self.MultMatrixAndVector(A_hat, s_hat)
         t_hat = self.AddVectors(t_temp, e_hat)
@@ -300,23 +301,113 @@ class ML_KEM:
         dk_pke = bytearray()
         for i in range(0, self.k):
             dk_pke.extend(self.ByteEncode(s_hat[i], 12))
+
+        #debug
         return ek_pke,dk_pke
+    
+    # Algorithm 14
+    def PKE_Encrypt(self, ek_pke: bytearray, m: bytearray, r: bytearray):
+        #1
+        N = 0
+
+        #2
+        t_hat = list()
+        for i in range(0, self.k):
+            t_hat.append(self.ByteDecode(ek_pke[384 * i: 384 * (i+1)], 12))
+
+        #3
+        rho = ek_pke[384 * self.k:]
+
+        #4 - 8
+        A_hat = list()
+        for i in range(0, self.k):
+            A_hat.append(list())
+            for j in range(0, self.k):
+                rho_copy = rho.copy()
+                rho_copy.extend((i, j))
+                A_hat[i].append(self.SampleNTT(rho_copy))
+
+        #9 - 12
+        y = list()
+        for i in range(0, self.k):
+            y.append(self.SamplePolyCBD(PRF(r, N, self.Eta1), self.Eta1))
+            N = N + 1
+
+        #13 - 16
+        e_1 = list()
+        for i in range(0, self.k):
+            e_1.append(self.SamplePolyCBD(PRF(r, N, self.Eta2), self.Eta2))
+            N = N + 1
+        
+        # 17
+        e_2 = self.SamplePolyCBD(PRF(r, N, self.Eta2), self.Eta2)
+
+        #18
+        y_hat = list()
+        for i in range(0, self.k):
+            y_hat.append(self.NTT(y[i]))
+
+        #19
+        temp = self.MultTransposedMatrixAndVector(A_hat, y_hat)
+        temp_2 = list()
+        for i in range(0, self.k):
+            temp_2.append(self.Inverse_NTT(temp[i]))
+        u = self.AddVectors(temp_2, e_1)
+
+        #20
+        Mu = self.DecompressArray(self.ByteDecode(m, 1), 1)
+
+        temp = self.MultVectors(t_hat, y_hat)
+        temp = self.Inverse_NTT(temp)
+        temp = self.AddRing(temp, e_2)
+        Nu = self.AddRing(temp, Mu)
+
+        c1 = bytearray()
+        for i in range(0, self.k):
+            c1.extend(self.ByteEncode(self.CompressArray(u[i], self.d_u), self.d_u))
+
+        c2 = self.ByteEncode(self.CompressArray(Nu, self.d_v), self.d_v)
+
+        c = c1.copy()
+        c.extend(c2)
+        return c
 
     # helper functions
 
+    # TODO: start here and work on 5.3 next
+
     # 2.12
-    def MultMatrixAndVector(self, A_hat: list[list[bytearray]], s_hat: list[bytearray]):
+    def MultMatrixAndVector(self, A_hat: list[list[array[int]]], s_hat: list[array[int]]):
         w_hat = list()
         for i in range(0, len(A_hat)):
-            w_current = bytearray(256)
+            w_current = array("I", [0] * 256)
             for j in range(0, self.k):
                 w_temp = self.MultiplyNTTs(A_hat[i][j],s_hat[j])
                 w_current = self.AddRing(w_current, w_temp)
             w_hat.append(w_current)
         return w_hat
 
+    # 2.13
+    def MultTransposedMatrixAndVector(self, A_hat: list[list[array[int]]], y_hat: list[array[int]]):
+        w_hat = list()
+        for i in range(0, len(A_hat)):
+            w_current = array("I", [0] * 256)
+            for j in range(0, self.k):
+                w_temp = self.MultiplyNTTs(A_hat[j][i],y_hat[j])
+                w_current = self.AddRing(w_current, w_temp)
+            w_hat.append(w_current)
+        return w_hat
+
+    # 2.14
+    def MultVectors(self, u_t_hat: list[array[int]], v_hat: list[array[int]]):
+        z_hat = array("I", [0] * 256)
+        for i in range(0, len(u_t_hat)):
+            z_temp = self.MultiplyNTTs(u_t_hat[i], v_hat[i])
+            z_hat = self.AddRing(z_hat, z_temp)
+        return z_hat
+
     # 2.11
-    def AddVectors(self, t_hat: list[bytearray], e_hat: list[bytearray]):
+    def AddVectors(self, t_hat: list[array[int]], e_hat: list[array[int]]):
         # make the assumption that they're the same length... maybe check for length error here
         returnList = list()
         for i in range(0, len(t_hat)):
@@ -324,22 +415,61 @@ class ML_KEM:
         return returnList
 
     # 2.11 (part 2)
-    def AddRing(self, entry1: bytearray, entry2: bytearray):
-        returnArray = bytearray()
+    def AddRing(self, entry1: array[int], entry2: array[int]):
+        returnArray = array("I")
         # make the assumption that they're the same length... maybe check for length error here
         for i in range(0, len(entry1)):
             returnArray.append((entry1[i] + entry2[i]) % self.q)
         return returnArray
+    
+    # 4.7 (floating point is NOT allowed)
+    def Compress(self, x: int, d: int):
+        # fips 203 says: x -> round(2^d / q * x) (mod 2^d)
+        # rounding is a little harder here because we have to do some fancy math (such as barrett reduction).
+        # since this isn't meant to be production code (and thus not constant time), we're going to make it simple to read.
+
+        x = 2**d * x
+        roundUp = (x % self.q > self.q_div_2)
+        x = x // self.q
+        if (roundUp):
+            x = x + 1
+        x = x % (2**d)
+        return x
+
+    # 4.8
+    def Decompress(self, y: int, d: int):
+        # FIPS 203 says: y -> round((q/2^d) * y)
+        # because of comunicative properties of math we're going to switch this to:
+        #  y -> round((q * y) / 2^d))
+        # round is going to be simple here because we're dividing by a power of 2, we simply need to add and bitshift once
+
+        y = self.q * y
+        y = y >> (d-1)
+        y = y + 1
+        y = y >> 1
+        y = y % self.q
+        return y
+
+    def CompressArray(self, x_array: array[int], d: int):
+        for i in range(0, len(x_array)):
+            x_array[i] = self.Compress(x_array[i], d)
+        return x_array
+    
+    def DecompressArray(self, y_array: array[int], d: int):
+        for i in range(0, len(y_array)):
+            y_array[i] = self.Decompress(y_array[i], d)
+        return y_array
 
 
 
 
 
 
-def PRF(s: bytearray, b: int, Nu: int):
+
+def PRF(s: bytearray, b: int, Eta: int):
     s_copy = s.copy()
     s_copy.append(b)
-    return SHA3.SHA_3.SHAKE256().SHAKE(s_copy, 8 * 64 * Nu)
+    return SHA3.SHA_3.SHAKE256().SHAKE(s_copy, 8 * 64 * Eta)
 
 def G(c: bytearray):
     return SHA3.SHA_3.sha3_512().hash(c)

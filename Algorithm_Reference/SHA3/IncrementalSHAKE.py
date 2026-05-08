@@ -9,7 +9,7 @@ class ShakeContext:
     def __init__(self):
         self.input = bytearray()
         self.outputAlreadyReturned = 0
-        self.bufferRequestSize = 1000 #bytes
+        self.bufferRequestSize = 2000 #bytes
         self.buffer = bytearray()
         self.squeezeCalledPreviously = False
     
@@ -28,6 +28,7 @@ class KnownEncodings(Enum):
 
 class IncrementalSHAKE128:
     def __init__(self):
+        # testing out hashlib as generation of matrix with hand built code is... slow
         self.SHA3 = SHA3.Keccak.SHA3(1600)
     
     def init(self):
@@ -65,7 +66,6 @@ class IncrementalSHAKE128:
 
             # need to fully call Keccak_c every time. so must request current size + new buffer 
             d = 8 * (len(ctx.buffer) + ctx.bufferRequestSize)
-
             ctx.buffer = self.SHA3.Keccak_c(shakeSize * 2, ctx.input, d)
         
         returnBytes = ctx.buffer[ctx.outputAlreadyReturned:(ctx.outputAlreadyReturned+bytesRequested)]

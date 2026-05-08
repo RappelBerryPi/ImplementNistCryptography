@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 class sha3_base(ABC):
     def __init__(self):
-        self.sha3 = Keccak.SHA3(1600)
+        self.sha3 = SHA3.Keccak.SHA3(1600)
     
     @abstractmethod
     def hash(self, Message: bytearray):
