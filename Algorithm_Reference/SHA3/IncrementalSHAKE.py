@@ -25,11 +25,11 @@ class KnownEncodings(Enum):
     UTF8 = 'utf-8'
     RAW = "raw"
 
-
-class IncrementalSHAKE128:
+class IncrementalSHAKE:
     def __init__(self):
         # testing out hashlib as generation of matrix with hand built code is... slow
         self.SHA3 = SHA3.Keccak.SHA3(1600)
+        self.shakeSize = 0
     
     def init(self):
         return ShakeContext()
@@ -46,7 +46,6 @@ class IncrementalSHAKE128:
         return ctx
     
     def squeeze(self, ctx: ShakeContext, bytesRequested: int):
-        shakeSize = 128
         returnBytes = b""
         if (not ctx.squeezeCalledPreviously):
             # copied from keccak.py
@@ -66,12 +65,22 @@ class IncrementalSHAKE128:
 
             # need to fully call Keccak_c every time. so must request current size + new buffer 
             d = 8 * (len(ctx.buffer) + ctx.bufferRequestSize)
-            ctx.buffer = self.SHA3.Keccak_c(shakeSize * 2, ctx.input, d)
+            ctx.buffer = self.SHA3.Keccak_c(self.shakeSize * 2, ctx.input, d)
         
         returnBytes = ctx.buffer[ctx.outputAlreadyReturned:(ctx.outputAlreadyReturned+bytesRequested)]
         ctx.outputAlreadyReturned += bytesRequested
 
         return ctx, returnBytes
+
+class IncrementalSHAKE128(IncrementalSHAKE):
+    def __init__(self):
+        super().__init__()
+        self.shakeSize = 128
+
+class IncrementalSHAKE256(IncrementalSHAKE):
+    def __init__(self):
+        super().__init__()
+        self.shakeSize = 256
 
 
 if __name__ == "__main__":
