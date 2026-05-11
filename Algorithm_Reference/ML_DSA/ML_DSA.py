@@ -1,4 +1,5 @@
 from enum import Enum
+import sys
 import os
 sys.path.append("../")
 import SHA2.SHA2
@@ -296,8 +297,54 @@ class ML_DSA:
 
     # Algorithm 7
 
-    def Sign_internal(sk: bytearray, M_prime: list, rnd: bytearray):
+    def Sign_internal(self, sk: bytearray, M_prime: list, rnd: bytearray):
+        #1
         rho, K, tr, s_1, s_2, t_0 = self.skDecode(sk)
+
+        #2
+        s_hat_1 = list()
+        for i in range(0, len(s_1)):
+            s_hat_1.append(self.NTT(s_1[i]))
+        
+        #3
+        s_hat_2 = list()
+        for i in range(0, len(s_2)):
+            s_hat_2.append(self.NTT(s_2[i]))
+
+        #4
+        t_hat_0 = list()
+        for i in range(0, len(t_0)):
+            t_hat_0.append(self.NTT(t_0[i]))
+
+        #5
+        A_hat = self.ExpandA(rho)
+
+        #6
+        # This is going to throw an error
+        temp = self.BytesToBits(tr)
+        temp.extend(M_prime)
+        temp = self.BitsToBytes(temp)
+        Mu = H(temp, 64)
+
+        #7
+        temp = K.copy()
+        temp.extend(rnd)
+        temp.extend(Mu)
+        rho_double_prime = H(temp, 64)
+
+        #8 - 9
+        k = 0
+        z = None
+        h = None
+        #10 - 32
+        while (z == None or h == None):
+            #11
+            y = self.ExpandMask(rho_double_prime, k)
+            #TODO: start here and build ExpandMask
+
+        
+
+
 
 
     # Helper functions
@@ -310,9 +357,13 @@ class ML_DSA:
             x = x >> 1
         return bitArray
     
+    # algorithm 10
     def BitsToInteger(self, y: list, alpha: int):
-        #TODO: start here, finish, then bitunpack, then skDecode, then Sign_internal
-        pass
+        x = 0
+        for i in range(alpha - 1, 0, -1):
+            x = (x | y[i]) << 1
+        x = x | y[0]
+        return x
     
     #algorithm 12
     # copied from Keccak
@@ -361,6 +412,17 @@ class ML_DSA:
         for i in range(0, 256):
             z.extend(self.IntegerToBits(b - w[i], a_b_bit_len))
         return self.BitsToBytes(z)
+
+    # Algorithm 18
+    def SimpleBitUnpack(self, v: bytearray, b: int):
+        w = array("i")
+        c = b.bit_length()
+        z = self.BytesToBits(v)
+        for i in range(0, 256):
+            start = i * c
+            end = start + c
+            w.append(self.BitsToInteger(z[start:end].copy(), c))
+        return w
 
     # Algorithm 19
     def BitUnpack(self, v: bytearray, a: int, b: int):
