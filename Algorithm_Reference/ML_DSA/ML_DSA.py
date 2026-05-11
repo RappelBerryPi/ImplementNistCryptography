@@ -115,7 +115,7 @@ class ML_DSA:
         temp.extend(IntegerToBytes(len(ctx),1))
         temp.extend(ctx)
 
-        M_prime = BytesToBits(temp)
+        M_prime = self.BytesToBits(temp)
 
         # TODO: ensure to encode M as bits
         M_prime.extend(M)
@@ -137,7 +137,7 @@ class ML_DSA:
         temp.extend(IntegerToBytes(len(ctx),1))
         temp.extend(ctx)
 
-        M_prime = BytesToBits(temp)
+        M_prime = self.BytesToBits(temp)
 
         # TODO: ensure to encode M as bits
         M_prime.extend(M)
@@ -197,7 +197,7 @@ class ML_DSA:
         temp.extend(OID)
         temp.extend(PH_m)
 
-        M_prime = BytesToBits(temp)
+        M_prime = self.BytesToBits(temp)
 
         sigma = self.Sign_internal(sk, M_prime, rnd)
         return sigma
@@ -250,7 +250,7 @@ class ML_DSA:
         temp.extend(OID)
         temp.extend(PH_m)
 
-        M_prime = BytesToBits(temp)
+        M_prime = self.BytesToBits(temp)
 
         return self.Verify_internal(pk, M_prime, sigma)
 
@@ -294,7 +294,11 @@ class ML_DSA:
         sk = self.skEncode(rho, K, tr, s_1, s_2, t_0)
         return pk, sk
 
-        #TODO: create NTT, Inverse_NTT, AddVectorNTT, Power2Round and others
+    # Algorithm 7
+
+    def Sign_internal(sk: bytearray, M_prime: list, rnd: bytearray):
+        rho, K, tr, s_1, s_2, t_0 = self.skDecode(sk)
+
 
     # Helper functions
 
@@ -305,6 +309,10 @@ class ML_DSA:
             bitArray.append(x & 0x01)
             x = x >> 1
         return bitArray
+    
+    def BitsToInteger(self, y: list, alpha: int):
+        #TODO: start here, finish, then bitunpack, then skDecode, then Sign_internal
+        pass
     
     #algorithm 12
     # copied from Keccak
@@ -324,6 +332,20 @@ class ML_DSA:
             raise ValueError("Unable to handle byte aligned bits")
         return string
 
+    # algorithm 13
+    # this is not their version which does a double for loop
+    def BytesToBits(self, z: bytearray):
+        string = list()
+        for i in range(0, len(z)):
+            string.append(z[i] & 0x01)
+            string.append((z[i] & 0x02) >> 1)
+            string.append((z[i] & 0x04) >> 2)
+            string.append((z[i] & 0x08) >> 3)
+            string.append((z[i] & 0x10) >> 4)
+            string.append((z[i] & 0x20) >> 5)
+            string.append((z[i] & 0x40) >> 6)
+            string.append((z[i] & 0x80) >> 7)
+        return string
 
     # Algorithm 16
     def SimpleBitPack(self, w: array[int], b: int):
@@ -340,6 +362,18 @@ class ML_DSA:
             z.extend(self.IntegerToBits(b - w[i], a_b_bit_len))
         return self.BitsToBytes(z)
 
+    # Algorithm 19
+    def BitUnpack(self, v: bytearray, a: int, b: int):
+        w = array("i")
+        c = (a + b).bit_length()
+        z = self.BytesToBits(v)
+        for i in range(0, 256):
+            start = i * c
+            end = start + c
+            w.append(b - self.BitsToInteger(z[start:end].copy(), c))
+        return w
+
+
     # Algorithm 22
     def pkEncode(self, rho: bytearray, t_1: list[array[int]]):
         pk = rho.copy()
@@ -347,7 +381,7 @@ class ML_DSA:
             pk.extend(self.SimpleBitPack(t_1[i], 2**(((self.q - 1) - self.d).bit_length) - 1))
         return pk
     
-    # algorithm 23
+    # algorithm 24
     def skEncode(self, rho: bytearray, K: bytearray, tr: bytearray, s_1: list[array[int]], s_2: list[array[int]], t_0: list[array[int]]):
         sk = rho.copy()
         sk.extend(K)
@@ -359,6 +393,34 @@ class ML_DSA:
         for i in range(0, self.k):
             sk.extend(self.BitPack(t_0[i], 2**(self.d-1) - 1, 2**(self.d - 1)))
         return sk
+
+    def skDecode(self, sk: bytearray):
+        #1
+        rho = sk[0:32].copy()
+        K = sk[32:64].copy()
+        tr = sk[64:128].copy()
+
+        #2 - 4
+        s_index_length = 32 * (2*self.eta).bit_length()
+        index = 128
+
+        s_1 = list()
+        for _ in range(0, self.l):
+            s_1.append(self.BitUnpack(sk[index:(index + s_index_length)], self.eta, self.eta))
+            index = index + s_index_length
+        
+        #5 - 7
+        s_2 = list()
+        for _ in range(0, self.k):
+            s_2.append(self.BitUnpack(sk[index:(index + s_index_length)], self.eta, self.eta))
+            index = index + s_index_length
+        
+        #8 - 10
+        t_0 = list()
+        for _ in range(0, self.k):
+            t_0.append(self.BitUnpack(sk[index:(index + 32 * self.d)], 2**(self.d-1) - 1, 2**(self.d - 1) ))
+            index = index + 32 * self.d
+        return rho, K, tr, s_1, s_2, t_0
 
     # Algorithm 32
     def ExpandA(self, rho: bytearray):
