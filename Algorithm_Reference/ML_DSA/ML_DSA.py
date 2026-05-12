@@ -1083,12 +1083,6 @@ class ML_DSA:
 #Algorithm 11
 def IntegerToBytes(x: int, a: int):
     return x.to_bytes(a, "little")
-# def IntegerToBytes(x: int, a: int):
-#     y = bytearray()
-#     for i in range(0, a):
-#         y.append(x % 256)
-#         x = x >> 8
-#     return y
 
 def H(str: bytearray, l: int):
     return SHA3.SHA_3.SHAKE256().SHAKE(str, 8 * l)

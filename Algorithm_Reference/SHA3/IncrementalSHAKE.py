@@ -30,7 +30,6 @@ class IncrementalSHAKE:
     def __init__(self):
         # testing out hashlib as generation of matrix with hand built code is... slow
         self.SHA3 = SHA3.Keccak.SHA3(1600)
-        self.SHA3_2 = hashlib.shake_256()
         self.shakeSize = 0
     
     def init(self):
@@ -50,7 +49,6 @@ class IncrementalSHAKE:
     def squeeze(self, ctx: ShakeContext, bytesRequested: int):
         returnBytes = b""
         if (not ctx.squeezeCalledPreviously):
-            self.SHA3_2.update(ctx.input)
             # copied from keccak.py
             M = self.SHA3.convertToBitArray(ctx.input)
             M.append(1)
@@ -68,10 +66,8 @@ class IncrementalSHAKE:
             # d*8 = bytes
 
             # need to fully call Keccak_c every time. so must request current size + new buffer 
-            # d = 8 * (len(ctx.buffer) + ctx.bufferRequestSize)
-            #  ctx.buffer = self.SHA3.Keccak_c(self.shakeSize * 2, ctx.input, d)
-            d = (len(ctx.buffer) + ctx.bufferRequestSize)
-            ctx.buffer = self.SHA3_2.digest(d)
+            d = 8 * (len(ctx.buffer) + ctx.bufferRequestSize)
+            ctx.buffer = self.SHA3.Keccak_c(self.shakeSize * 2, ctx.input, d)
 
         
         returnBytes = ctx.buffer[ctx.outputAlreadyReturned:(ctx.outputAlreadyReturned+bytesRequested)]
@@ -83,13 +79,11 @@ class IncrementalSHAKE128(IncrementalSHAKE):
     def __init__(self):
         super().__init__()
         self.shakeSize = 128
-        self.SHA3_2 = hashlib.shake_128()
 
 class IncrementalSHAKE256(IncrementalSHAKE):
     def __init__(self):
         super().__init__()
         self.shakeSize = 256
-        self.sha3_2 = hashlib.shake_256()
 
 
 if __name__ == "__main__":
