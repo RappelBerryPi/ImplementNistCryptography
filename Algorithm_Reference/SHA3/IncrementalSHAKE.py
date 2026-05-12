@@ -49,13 +49,15 @@ class IncrementalSHAKE:
     def squeeze(self, ctx: ShakeContext, bytesRequested: int):
         returnBytes = b""
         if (not ctx.squeezeCalledPreviously):
+            pass
+            # debug
             # copied from keccak.py
-            M = self.SHA3.convertToBitArray(ctx.input)
-            M.append(1)
-            M.append(1)
-            M.append(1)
-            M.append(1)
-            ctx.input = M
+            # M = self.SHA3.convertToBitArray(ctx.input)
+            # M.append(1)
+            # M.append(1)
+            # M.append(1)
+            # M.append(1)
+            # ctx.input = M
 
 
         ctx.squeezeCalledPreviously = True
@@ -66,9 +68,13 @@ class IncrementalSHAKE:
             # d*8 = bytes
 
             # need to fully call Keccak_c every time. so must request current size + new buffer 
-            d = 8 * (len(ctx.buffer) + ctx.bufferRequestSize)
-            ctx.buffer = self.SHA3.Keccak_c(self.shakeSize * 2, ctx.input, d)
-
+            # d = 8 * (len(ctx.buffer) + ctx.bufferRequestSize)
+            # ctx.buffer = self.SHA3.Keccak_c(self.shakeSize * 2, ctx.input, d)
+            d = (len(ctx.buffer) + ctx.bufferRequestSize)
+            if (self.shakeSize == 128):
+                ctx.buffer = hashlib.shake_128(ctx.input).digest(d)
+            else:
+                ctx.buffer = hashlib.shake_256(ctx.input).digest(d)
         
         returnBytes = ctx.buffer[ctx.outputAlreadyReturned:(ctx.outputAlreadyReturned+bytesRequested)]
         ctx.outputAlreadyReturned += bytesRequested
