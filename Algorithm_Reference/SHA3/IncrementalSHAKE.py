@@ -50,7 +50,6 @@ class IncrementalSHAKE:
         returnBytes = b""
         if (not ctx.squeezeCalledPreviously):
             pass
-            # debug
             # copied from keccak.py
             # M = self.SHA3.convertToBitArray(ctx.input)
             # M.append(1)
