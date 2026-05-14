@@ -312,6 +312,7 @@ class FORS_PRF_Address(Address):
 class SLH_DSA(ABC):
     def __init__(self):
         self.n = 0 # TODO: actually set with parameters
+        self.h_prime = 0 #TODO: actually set with parameters
         self.lg_w = 4
         self.w = 16
         self.len_1 = 2 * self.n
@@ -409,7 +410,102 @@ class SLH_DSA(ABC):
             sig.extend(self.chain(sk, 0, msg[i], PK_seed, ADRS.as_bytearray()))
         return sig
     
-    # TODO: start here and work on Algorithm 8
+    # algorithm 8
+    def wots_pkFromSig(self, sig: bytearray, M: bytearray, PK_seed: bytearray, ADRS: Address):
+        #1
+        csum = 0
+
+        #2
+        msg = self.base_2b(M, self.lg_w, self.len_1)
+
+        #3 - 5
+        for i in range(0, self.len_1):
+            csum = csum + self.w - 1 - msg[i]
+
+        #6
+        csum = csum << ((8 - ((self.len_2 * self.lg_w) % 8)) % 8)
+
+        #7
+        byteSize = ceil(self.len_2 * self.lg_w / 8)
+        msg.extend(self.base_2b(SLH_DSA.toByte(csum, byteSize), self.lg_w, self.len_2))
+
+        #8 - 11
+        temp = bytearray()
+        for i in range(0, self.len):
+            ADRS.setChainAddress(i)
+            temp.extend(self.chain(sig[i], msg[i], self.w-1-msg[i] , PK_seed, ADRS.as_bytearray()))
+
+        #12 - 14 (taken care of in __init__)
+        wotspkADRS = WOTS_PK_Address(ADRS.as_bytearray())
+
+        pk_sig = self.T_len(PK_seed, wotspkADRS, temp)
+        return pk_sig
+    
+    # algorithm 9
+    def xmss_node(self, SK_seed: bytearray, i: int, z: int, PK_seed: bytearray, ADRS: Address) -> bytearray:
+        node = bytearray()
+        if (z == 0):
+            WotsHashADRS = WOTS_Hash_Address(ADRS)
+            WotsHashADRS.setKeyPairAddress(i)
+            node = self.wots_pkGen(SK_seed, PK_seed, WotsHashADRS)
+        else:
+            # recursion
+            lnode = self.xmss_node(SK_seed, 2*i, z - 1, PK_seed, ADRS)
+            rnode = self.xmss_node(SK_seed, 2*i + 1, z - 1, PK_seed, ADRS)
+            TreeADRS = Hash_Tree_Address(ADRS.as_bytearray())
+            TreeADRS.setTreeHeight(z)
+            TreeADRS.setTreeIndex(i)
+
+            # 11
+            temp = lnode.copy()
+            temp.extend(rnode)
+            node = self.H(PK_seed, TreeADRS, temp)
+        return node
+    
+    # Algorithm 10
+    def xmss_sign(self, M: bytearray, SK_seed: bytearray, idx: int, PK_seed: bytearray, ADRS: Address) -> bytearray:
+        AUTH = bytearray()
+        for j in range(0, self.h_prime):
+            k = (idx >> j) ^ 0x01
+            AUTH.extend(self.xmss_node(SK_seed, k, j, PK_seed, ADRS))
+        
+        wotsHash = WOTS_Hash_Address(ADRS.as_bytearray())
+        wotsHash.setKeyPairAddress(idx)
+        sig = self.wots_sign(M, SK_seed, PK_seed, wotsHash)
+        sig.extend(AUTH)
+        return sig
+    
+    # Algorithm 11
+    def xmss_pkFromSig(self, idx: int, SIG_xmss: bytearray, M: bytearray, PK_seed: bytearray, ADRS: Address) -> bytearray:
+        wotsHash = WOTS_Hash_Address(ADRS.as_bytearray())
+        wotsHash.setKeyPairAddress(idx)
+
+        sig = SIG_xmss[0:(self.len * self.n)].copy()
+        AUTH = SIG_xmss[(self.len * self.n):((self.len + self.h_prime) * self.n)].copy()
+
+        node_0 = self.wots_pkFromSig(sig, M, PK_seed, wotsHash)
+
+        TreeADRS = Hash_Tree_Address(wotsHash.as_bytearray())
+        TreeADRS.setTypeAndClear(TreeType.TREE.value)
+        TreeADRS.setTreeIndex(idx)
+
+        for k in range(0, self.h_prime):
+            TreeADRS.setTreeHeight(k + 1)
+            if ((idx >> k) % 2 == 0):
+                TreeADRS.setTreeIndex(TreeADRS.getTreeIndex() // 2) #TODO: replace with shift
+                temp = node_0.copy()
+                temp.extend(AUTH[(k*self.n):((k + 1) * self.n)])
+                node_1 = self.H(PK_seed, TreeADRS, temp)
+            else:
+                TreeADRS.setTreeIndex((TreeADRS.getTreeIndex() - 1)// 2) # todo: relplace with shift
+                temp = AUTH[(k*self.n):((k + 1) * self.n)].copy()
+                temp.extend(node_0)
+                node_1 = self.H(PK_seed, TreeADRS, temp)
+            node_0 = node_1.copy()
+        return node_0
+    
+    #TODO: start here and create algorithm 12
+
     
     # on page 44
     # what the following are depends on what the parameter set is. SHAKE parameter sets use SHAKE256, SHA-2 Parameter sets use
