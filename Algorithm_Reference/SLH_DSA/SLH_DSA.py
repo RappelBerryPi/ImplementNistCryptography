@@ -2,6 +2,7 @@ from array import array
 from abc import ABC, abstractmethod
 from enum import Enum
 from math import ceil
+import os
 
 class TreeType(Enum):
     WOTS_HASH = 0
@@ -307,12 +308,75 @@ class FORS_PRF_Address(Address):
         self.bytes[28:32] = value[0:4]
 
 
+class SLH_DSA_SK:
+    def __init__(self, n: int):
+        self._n = n
+        self.SK_seed = bytearray([0] * n)
+        self.SK_prf = bytearray([0] * n)
+        self.PK_seed = bytearray([0] * n)
+        self.PK_root = bytearray([0] * n)
+    
+    @property
+    def SK_seed(self) -> bytearray:
+        return self._SK_seed
+    
+    @SK_seed.setter
+    def SK_seed(self, value: bytearray):
+        self.SK_seed = value[0:self._n]
+
+    @property
+    def SK_prf(self) -> bytearray:
+        return self._SK_prf
+    
+    @SK_prf.setter
+    def SK_prf(self, value: bytearray):
+        self.SK_prf = value[0:self._n]
+
+    @property
+    def PK_seed(self) -> bytearray:
+        return self._PK_seed
+    
+    @PK_seed.setter
+    def PK_seed(self, value: bytearray):
+        self.PK_seed = value[0:self._n]
+
+    @property
+    def PK_root(self) -> bytearray:
+        return self._PK_root
+    
+    @PK_root.setter
+    def PK_root(self, value: bytearray):
+        self.PK_root = value[0:self._n]
+
+class SLH_DSA_PK:
+    def __init__(self, n: int):
+        self._n = n
+        self.PK_seed = bytearray([0] * n)
+        self.PK_root = bytearray([0] * n)
+    
+    @property
+    def PK_seed(self) -> bytearray:
+        return self._PK_seed
+    
+    @PK_seed.setter
+    def PK_seed(self, value: bytearray):
+        self.PK_seed = value[0:self._n]
+
+    @property
+    def PK_root(self) -> bytearray:
+        return self._PK_root
+    
+    @PK_root.setter
+    def PK_root(self, value: bytearray):
+        self.PK_root = value[0:self._n]
+
 
 
 class SLH_DSA(ABC):
     def __init__(self):
         self.n = 0 # TODO: actually set with parameters
         self.h_prime = 0 #TODO: actually set with parameters
+        self.d = 0 #TODO: actually set with parameters
         self.lg_w = 4
         self.w = 16
         self.len_1 = 2 * self.n
@@ -504,7 +568,246 @@ class SLH_DSA(ABC):
             node_0 = node_1.copy()
         return node_0
     
-    #TODO: start here and create algorithm 12
+    # algorithm 12
+    def ht_sign(self, M: bytearray, SK_seed: bytearray, PK_seed: bytearray, idx_tree: int, idx_leaf: int) -> bytearray:
+        ADRS = Address([0] * 32)
+        ADRS.setTreeAddress(idx_tree)
+
+        SIG_temp = self.xmss_sign(M, SK_seed, idx_leaf, PK_seed, ADRS)
+        SIG_ht = SIG_temp.copy()
+        root = self.xmss_pkFromSig(idx_leaf, SIG_temp, M, PK_seed, ADRS)
+        for j in range(1, self.d):
+            idx_leaf = idx_tree % 2**self.h_prime
+            idx_tree = idx_tree >> self.h_prime
+            ADRS.setLayerAddress(j)
+            ADRS.setTreeAddress(idx_tree)
+            SIG_temp = self.xmss_sign(root, SK_seed, idx_leaf, PK_seed, ADRS)
+            SIG_ht.extend(SIG_temp)
+            if (j < self.d - 1):
+                root = self.xmss_pkFromSig(idx_leaf, SIG_temp, root, PK_seed, ADRS)
+        return SIG_ht
+
+    #Algorithm 13
+    def ht_verify(self, M: bytearray, SIG_ht: bytearray, PK_seed: bytearray, idx_tree: int, idx_leaf: int, PK_root: bytearray) -> bytearray:
+        ADRS = Address([0] * 32)
+        ADRS.setTreeAddress(idx_tree)
+        SIG_tmp = SIG_ht[0:((self.h_prime + self.len) * self.n)].copy()
+        node = self.xmss_pkFromSig(idx_leaf, SIG_tmp, M, PK_seed, ADRS)
+        for j in range(1, self.d):
+            idx_leaf = idx_tree % 2**self.h_prime
+            idx_tree = idx_tree >> self.h_prime
+            ADRS.setLayerAddress(j)
+            ADRS.setTreeAddress(idx_tree)
+            SIG_tmp = SIG_ht[(j * (self.h_prime + self.len) * self.n):((j + 1) * (self.h_prime + self.len) * self.n)].copy()
+            node = self.xmss_pkFromSig(idx_leaf, SIG_tmp, node, PK_seed, ADRS)
+        return PK_root == node
+
+    # FORS
+    #Algorithm 14
+    def fors_skGen(self, SK_seed: bytearray, PK_seed: bytearray, ADRS: Address, idx: int) -> bytearray:
+        skADRS = FORS_PRF_Address(ADRS.as_bytearray())
+        skADRS.setTypeAndClear(TreeType.FORS_PRF.value)
+        skADRS.setKeyPairAddress(ADRS.getKeyPairAddress())
+        skADRS.setTreeIndex(idx)
+        return self.PRF(PK_seed, SK_seed, skADRS)
+    
+    # Algorithm 15
+    def fors_node(self, SK_seed: bytearray, i: int, z: int, PK_seed: bytearray, ADRS: Address) -> bytearray:
+        if (z == 0):
+            sk = self.fors_skGen(SK_seed, PK_seed, ADRS, i)
+            ADRS.setTreeHeight(0)
+            ADRS.setTreeIndex(i)
+            node = self.F(PK_seed, ADRS, sk)
+        else:
+            # recursion
+            lnode = self.fors_node(SK_seed, 2*i, z - 1, PK_seed, ADRS)
+            rnode = self.fors_node(SK_seed, 2*i + 1, z - 1, PK_seed, ADRS)
+            TreeADRS = Hash_Tree_Address(ADRS.as_bytearray())
+            TreeADRS.setTreeHeight(z)
+            TreeADRS.setTreeIndex(i)
+
+            # 11
+            temp = lnode.copy()
+            temp.extend(rnode)
+            node = self.H(PK_seed, TreeADRS, temp)
+        return node
+
+
+    # Algorithm 16
+    def fors_sign(self, md: bytearray, SK_seed: bytearray, PK_seed: bytearray, ADRS: Address) -> bytearray:
+        SIG_fors = bytearray()
+        indices = self.base_2b(md, self.a, self.k)
+        for i in range(0, self.k):
+            SIG_fors.extend(self.fors_skGen(SK_seed, PK_seed, ADRS, (i << self.a) + indices[i]))
+            AUTH = bytearray()
+            for j in range(0, self.a):
+                s = (indices[i] >> j) ^ 0x01
+                AUTH.extend(self.fors_node(SK_seed, (i << (self.a - j) + s), j, PK_seed, ADRS))
+            SIG_fors.extend(AUTH)
+        return SIG_fors
+    
+    # Algorithm 17
+    def fors_pkFromSig(self, SIG_fors: bytearray, md: bytearray, PK_seed: bytearray, ADRS: Address) -> bytearray:
+        root = bytearray()
+        indices = self.base_2b(md, self.a, self.k)
+        for i in range(0, self.k):
+            sk_start = i * (self.a + 1) * self.n
+            sk_end = (i * (self.a + 1) + 1) * self.n
+            sk = SIG_fors[sk_start:sk_end].copy()
+            ADRS.setTreeHeight(0)
+            ADRS.setTreeIndex(i << self.a + indices[i])
+            node_0 = self.F(PK_seed, ADRS, sk)
+
+            sig_start = sk_end
+            sig_end = (((i + 1) * (self.a + 1) + 1)* self.n)
+            AUTH = SIG_fors[sig_start:sig_end].copy() 
+            for j in range(0, self.a):
+                ADRS.setTreeHeight(j + 1)
+                if ((indices[i] >> j) % 2 == 0):
+                    ADRS.setTreeIndex(ADRS.getTreeIndex() // 2)
+                    temp = node_0.copy()
+                    temp.extend(AUTH[(j * self.n):((j + 1) * self.n)])
+                    node_1 = self.H(PK_seed, ADRS, temp)
+                else:
+                    ADRS.setTreeIndex((ADRS.getTreeIndex() -1) // 2)
+                    temp = AUTH[(j * self.n):((j + 1) * self.n)].copy()
+                    temp.extend(node_0)
+                    node_1 = self.H(PK_seed, ADRS, temp)
+                node_0 = node_1.copy()
+            root.extend(node_0)
+        forspkADRS = FORS_Tree_Roots_Address(ADRS.as_bytearray())
+        forspkADRS.setTypeAndClear(TreeType.FORS_ROOTS)
+        forspkADRS.setKeyPairAddress(ADRS.getKeyPairAddress())
+        pk = self.T_len(PK_seed, forspkADRS, root) #todo: len?
+
+
+    #Algorithm 18
+    def slh_keygen_internal(self, SK_seed: bytearray, SK_prf: bytearray, PK_seed: bytearray) -> tuple[SLH_DSA_SK, SLH_DSA_PK]:
+        ADRS = Address()
+        ADRS.setLayerAddress(self.d - 1)
+        PK_root = self.xmss_node(SK_seed, 0, self.h_prime, PK_seed, ADRS)
+
+        sk = SLH_DSA_SK(self.n)
+        sk.PK_root = PK_root
+        sk.PK_seed = PK_seed
+        sk.SK_prf = SK_prf
+        sk.SK_seed = SK_seed
+
+        pk = SLH_DSA_PK(self.n)
+        pk.PK_root = PK_root
+        pk.PK_seed = PK_seed
+
+        return sk, pk
+
+    # Algorithm 19
+    #TODO: deterministic variant
+    def slh_sign_internal(self, M: bytearray, SK: SLH_DSA_SK, addrnd: bytearray) -> bytearray:
+        ADRS = Address()
+
+        opt_rand = addrnd.copy()
+        R : bytearray = self.PRF_msg(SK.SK_prf, opt_rand, M) 
+        sig = R.copy()
+
+        digest = self.H_msg(R, SK.PK_seed, SK.PK_root, M) # digest the message based upon the PK seed and root
+
+        # temporary values
+        k_a_8 = ceil(self.k * self.a / 8)
+        h_h_d = ceil(self.h - (self.h / self.d) / 8)
+        h_8_d = ceil(self.h / (self.d * 8))
+
+        md = digest[0:k_a_8] # first bytes are the digest
+        tmp_idx_tree = digest[k_a_8:(k_a_8 + h_h_d)] # next bytes are the index of the tree to be used to sign the message
+        tmp_idx_leaf = digest[(k_a_8 + h_h_d):(k_a_8 + h_h_d + h_8_d)] #next bytes are the index of the leaf to be used
+
+        # 9-10
+        # convert those byte address to ints now
+
+        idx_tree = SLH_DSA.toInt(tmp_idx_tree, h_h_d) % 2**(self.h - (self.h // self.d))
+        idx_leaf = SLH_DSA.toInt(tmp_idx_leaf, h_8_d) % 2**(self.h // self.d)
+
+        #11 - 13
+        forsADRS = FORS_Tree_Address(ADRS.as_bytearray())
+        forsADRS.setTreeAddress(idx_tree)
+        forsADRS.setTypeAndClear(TreeType.FORS_TREE.value)
+        forsADRS.setKeyPairAddress(idx_leaf)
+
+        #14
+        SIG_fors = self.fors_sign(md, SK.SK_seed, SK.PK_seed, forsADRS)
+
+        #15
+        sig.extend(SIG_fors)
+
+        #16
+        PK_fors = self.fors_pkFromSig(SIG_fors, md, SK.PK_seed, forsADRS)
+
+        #17
+        SIG_ht = self.ht_sign(PK_fors, SK.SK_seed, SK.PK_seed, forsADRS)
+
+        #18
+        sig.extend(SIG_ht)
+
+        #19
+        return sig
+
+    #Algorithm 20
+    def slh_verify_internal(self, M: bytearray, SIG: bytearray, PK: SLH_DSA_PK) -> bool:
+        if (len(SIG) != (1 + self.k * (1 + self.a) + self.h + self.d * self.len) * self.n):
+            return False
+        
+        ADRS = Address()
+        R = SIG[0:self.n].copy()
+
+        SIG_fors = SIG[self.n:((1 + self.k * (self.a + 1)) * self.n)]
+        SIG_ht = SIG[((1 + self.k * (self.a + 1)) * self.n):((1 + self.k * (self.a + 1) + self.h + self.d * self.len) * self.n)]
+
+        digest = self.H_msg(R, PK.PK_seed, PK.PK_root, M)
+
+        # temporary values
+        k_a_8 = ceil(self.k * self.a / 8)
+        h_h_d = ceil(self.h - (self.h / self.d) / 8)
+        h_8_d = ceil(self.h / (self.d * 8))
+
+        md = digest[0:k_a_8] # first bytes are the digest
+        tmp_idx_tree = digest[k_a_8:(k_a_8 + h_h_d)] # next bytes are the index of the tree to be used to sign the message
+        tmp_idx_leaf = digest[(k_a_8 + h_h_d):(k_a_8 + h_h_d + h_8_d)] #next bytes are the index of the leaf to be used
+
+        # 9-10
+        # convert those byte address to ints now
+
+        idx_tree = SLH_DSA.toInt(tmp_idx_tree, h_h_d) % 2**(self.h - (self.h // self.d))
+        idx_leaf = SLH_DSA.toInt(tmp_idx_leaf, h_8_d) % 2**(self.h // self.d)
+
+        #11 - 13
+        forsADRS = FORS_Tree_Address(ADRS.as_bytearray())
+        forsADRS.setTreeAddress(idx_tree)
+        forsADRS.setTypeAndClear(TreeType.FORS_TREE.value)
+        forsADRS.setKeyPairAddress(idx_leaf)
+
+
+        #16
+        PK_fors = self.fors_pkFromSig(SIG_fors, md, PK.PK_seed, forsADRS)
+
+        return self.ht_verify(PK_fors, SIG_ht, PK.PK_seed, idx_tree, idx_leaf, PK.PK_root)
+
+    # Algorithm 21
+
+    def slh_keygen(self) -> tuple[SLH_DSA_SK, SLH_DSA_PK]:
+        SK_seed = bytearray(os.urandom(self.n))
+        SK_prf = bytearray(os.urandom(self.n))
+        PK_seed = bytearray(os.urandom(self.n))
+
+        if (SK_seed == None) or (PK_seed == None) or (SK_prf == None):
+            return None, None
+        
+        return self.slh_keygen_internal(SK_seed, SK_prf, PK_seed)
+
+
+    #TODO: create algorithm 22
+
+
+
+
+
 
     
     # on page 44
