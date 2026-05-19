@@ -552,6 +552,3 @@ if __name__ == "__main__":
     y = hashes.Hash(hashes.SHA256())
     y.update(string)
     print(y.finalize())
-
-    # TODO: FINISH 224, 384, 512, 512/224, and 512/256
-

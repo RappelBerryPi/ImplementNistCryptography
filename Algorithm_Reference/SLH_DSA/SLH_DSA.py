@@ -299,7 +299,6 @@ class FORS_PRF_Address(Address):
         self.bytes[28:32] = value[0:4]
 
 
-#TODO: repeat init for PK
 class SLH_DSA_SK:
     def __init__(self, n: int, bytes: bytearray = None):
         if (bytes == None):
@@ -784,12 +783,13 @@ class SLH_DSA(ABC):
         for k in range(0, self.h_prime):
             TreeADRS.setTreeHeight(k + 1)
             if ((idx >> k) % 2 == 0):
-                TreeADRS.setTreeIndex(TreeADRS.getTreeIndex() // 2) #TODO: replace with shift
+                # TreeADRS.setTreeIndex(TreeADRS.getTreeIndex() // 2)
+                TreeADRS.setTreeIndex(TreeADRS.getTreeIndex() >> 1)
                 temp = node_0.copy()
                 temp.extend(AUTH[(k*self.n):((k + 1) * self.n)])
                 node_1 = self.H(PK_seed, TreeADRS.as_bytearray(), temp)
             else:
-                TreeADRS.setTreeIndex((TreeADRS.getTreeIndex() - 1)// 2) # todo: relplace with shift
+                TreeADRS.setTreeIndex(TreeADRS.getTreeIndex() >> 1) # todo: relplace with shift
                 temp = AUTH[(k*self.n):((k + 1) * self.n)].copy()
                 temp.extend(node_0)
                 node_1 = self.H(PK_seed, TreeADRS.as_bytearray(), temp)
@@ -879,7 +879,6 @@ class SLH_DSA(ABC):
     
     # Algorithm 17
     def fors_pkFromSig(self, SIG_fors: bytearray, md: bytearray, PK_seed: bytearray, ADRS: Address) -> bytearray:
-        #TODO: start debugging here
         root = bytearray()
         indices = self.base_2b(md, self.a, self.k)
         for i in range(0, self.k):
@@ -896,12 +895,14 @@ class SLH_DSA(ABC):
             for j in range(0, self.a):
                 ADRS.setTreeHeight(j + 1)
                 if ((indices[i] >> j) % 2 == 0):
-                    ADRS.setTreeIndex(ADRS.getTreeIndex() // 2)
+                    # ADRS.setTreeIndex(ADRS.getTreeIndex() // 2)
+                    ADRS.setTreeIndex(ADRS.getTreeIndex() >> 1)
                     temp = node_0.copy()
                     temp.extend(AUTH[(j * self.n):((j + 1) * self.n)])
                     node_1 = self.H(PK_seed, ADRS.as_bytearray(), temp)
                 else:
-                    ADRS.setTreeIndex((ADRS.getTreeIndex() -1) // 2)
+                    # ADRS.setTreeIndex((ADRS.getTreeIndex() -1) // 2)
+                    ADRS.setTreeIndex(ADRS.getTreeIndex() >> 1)
                     temp = AUTH[(j * self.n):((j + 1) * self.n)].copy()
                     temp.extend(node_0)
                     node_1 = self.H(PK_seed, ADRS.as_bytearray(), temp)
@@ -934,7 +935,6 @@ class SLH_DSA(ABC):
         return sk, pk
 
     # Algorithm 19
-    #TODO: deterministic variant
     def slh_sign_internal(self, M: bytearray, SK: SLH_DSA_SK, addrnd: bytearray) -> bytearray:
         ADRS = Address(bytearray([0] * 32))
 
@@ -1195,14 +1195,10 @@ class SLH_DSA(ABC):
 
         return self.slh_verify_internal(M_prime, SIG, PK)
     
-    #TODO: add parameter sets, finalize the functions below with an SHA2 and SHAKE variant
-
     
     # on page 44
     # what the following are depends on what the parameter set is. SHAKE parameter sets use SHAKE256, SHA-2 Parameter sets use
     # SHA-2. WE're going to have to have a derived class
-    #TODO: create derived SLH_DSA_SHA2 and SLH_DSA_SHAKE that override this plus the other functions in section 11.1 and
-    #11.2
 
     @abstractmethod
     #M can be any size
@@ -1479,4 +1475,18 @@ if __name__ == "__main__":
     expected_validation = True
     validation = slh_dsa.slh_verify(Message, signature, context, PK)
     print(f"matches: {validation == expected_validation}")
+
+
+
+    message = bytearray(b"hello world")
+    ctx = bytearray(b"")
+    for parameterSet in SLH_DSA_PARAMETER_SET:
+        print(f"parameterSet {parameterSet}")
+        slh_dsa = get_slh_dsa_instance_from_parameter_set(parameterSet)
+        SK, PK = slh_dsa.slh_keygen()
+        print("\tKeys Generated")
+        signature = slh_dsa.slh_sign(message, ctx, SK)
+        print("\tSigned")
+        print(f"\tIsValid: {slh_dsa.slh_verify(message, signature, ctx, PK)}")
+
 
