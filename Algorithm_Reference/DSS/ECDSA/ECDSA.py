@@ -19,7 +19,6 @@ class ECDSA:
         hash = hashes.Hash(hashAlgorithm)
         hash.update(message)
         H = hash.finalize()
-        print(self.curve.n.bit_length(), len(H))
 
         #2
         #2.a.
@@ -27,7 +26,6 @@ class ECDSA:
             E = H
         else:
             E_len = math.log2(self.curve.n)
-            E_len_2 = self.curve.n.bit_length()
             E_len = math.ceil(E_len)
             E_len = E_len // 8
             E = H[0:E_len]
@@ -57,6 +55,8 @@ class ECDSA:
 
             #9
             s = (k_inverse * (e + r * self.private_key.d)) % self.curve.n
+            print(((k_inverse * e) + self.public_key.Q.x) % self.curve.n )
+            print(s)
 
             #10
             k = 0
@@ -64,18 +64,65 @@ class ECDSA:
         
         return r,s
     
+    
     def verify(self, message: bytes, hashAlgorithm: hashes.HashAlgorithm, r: int, s: int):
         #TODO: validate according to section 6.2.2 before "setp 1"
 
         #1
-        if (not(1 <= r and r < self.curve.n)) {
+        if (not(1 <= r and r < self.curve.n)):
             return False
-        }
-        if (not(1 <= s and s < self.curve.n)) {
+        if (not(1 <= s and s < self.curve.n)):
             return False
-        }
-        #TODO: start here and finish
-    
+        
+        #2
+        hash = hashes.Hash(hashAlgorithm)
+        hash.update(message)
+        H = hash.finalize()
+
+        #3
+        #3.a.
+        if (self.curve.n.bit_length() //8 >= len(H)):
+            E = H
+        else:
+            E_len = math.log2(self.curve.n)
+            E_len = math.ceil(E_len)
+            E_len = E_len // 8
+            E = H[0:E_len]
+        
+        #3.b.
+        e = int.from_bytes(E)
+
+        #4
+        s_inverse = self.ComputeInverseK(s)
+
+        #5
+        u = (e * s_inverse) % self.curve.n
+        v = (r * s_inverse) % self.curve.n
+
+        #6
+        temp = ECDH.ECUtil.MultiplyPoint(self.curve.G, u, self.curve.a, self.curve.p)
+        temp2 = ECDH.ECUtil.MultiplyPoint(self.public_key.Q, v, self.curve.a, self.curve.p)
+        R_1 = ECDH.ECUtil.AddPoints(temp, temp2, self.curve.a, self.curve.p)
+
+        #7 & 8
+        r_1 = R_1.x
+
+        #9
+        return r == r_1
+
+        # as a note
+        ###
+        # this works because R = S^-1 * e * G + S^-1 * R * Q
+        # we can work through this:
+        # R = k * G
+        # Q = d * G
+        # so:
+        # k * G = S^-1 * e * G + S^-1 * R * d * G
+        # k * G = (S^-1 * G) * (e + R * d)
+        # k = S^-1 * (e + R * d)
+        # kS = e + R * d
+        # S = k^-1 * (e + R * d)
+
     # Appendix A.3.1
     def GenerateRandomIntegerWithExtraBits(self, t: int = 64):
         #1
@@ -200,3 +247,5 @@ if __name__ == "__main__":
       r, s = ecdsa.sign(message, hashes.SHA224())
       print(r.to_bytes(32).hex())
       print(s.to_bytes(32).hex())
+
+      print(ecdsa.verify(message, hashes.SHA224(), r, s))
