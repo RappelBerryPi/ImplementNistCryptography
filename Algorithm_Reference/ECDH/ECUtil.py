@@ -107,8 +107,8 @@ class ECCCurve:
         self.a: int = ECCCurves[curveType][1]
         self.b: int = ECCCurves[curveType][2]
         self.G: ECCPoint = ECCPoint(ECCCurves[curveType][3],ECCCurves[curveType][4])
-        self.n: int = ECCCurves[curveType][6]
-        self.h: int = ECCCurves[curveType][7]
+        self.n: int = ECCCurves[curveType][5]
+        self.h: int = ECCCurves[curveType][6]
     
     # D.1.1.1
     def pointIsOnCurve(self, point: ECCPoint):
