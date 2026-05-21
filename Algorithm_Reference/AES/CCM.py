@@ -66,7 +66,6 @@ class CCM:
         T = Utils.TruncateLeft(T)
         counter = Utils.increment_counter(counter, counter_q)
 
-        # TODO: finish
         plaintext = bytearray() 
         for i in range (0,len(P),16):
             output = self.cipher.Encrypt(counter, self.key)
@@ -117,7 +116,6 @@ class CCM:
         Bytes.extend(nonce)
         Bytes.extend(bytearray(p.to_bytes(q, byteorder="big")))
 
-        # TODO: run sanity check here to make sure that the data is 16 bytes long at this point
         #A.2.2
         if (a > 0 and a < (2**16-2**8)):
             Bytes.extend(bytearray(a.to_bytes(2, byteorder="big")))
@@ -133,14 +131,14 @@ class CCM:
         while len(Bytes) % 16 != 0:
             Bytes.append(0x00)
 
-        self.u = len(Bytes) // 16 # TODO: setting as a property. right thing to do? maybe
+        self.u = len(Bytes) // 16 
         
         Bytes.extend(plaintext)
 
         while len(Bytes) % 16 != 0:
             Bytes.append(0x00)
 
-        self.r = len(Bytes) // 16 # TODO: setting as a property. right thing to do? maybe
+        self.r = len(Bytes) // 16
 
         return Bytes
     

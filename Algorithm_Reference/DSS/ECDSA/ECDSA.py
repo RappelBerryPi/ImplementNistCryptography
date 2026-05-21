@@ -66,7 +66,9 @@ class ECDSA:
     
     
     def verify(self, message: bytes, hashAlgorithm: hashes.HashAlgorithm, r: int, s: int):
-        #TODO: validate according to section 6.2.2 before "setp 1"
+        #validate according to section 6.2.2 before "setp 1"
+        # this validation is done implicitly because the domain parameters are set up on a curve of a defined type set
+        # up as an enum.
 
         #1
         if (not(1 <= r and r < self.curve.n)):

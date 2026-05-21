@@ -12,7 +12,9 @@ class KW:
         self.ICV2 = bytearray([0xA6,0x59,0x59,0xA6])
 
     def KW_AE(self, plaintext: bytearray):
-        #TODO: check plaintext len
+        S_semi_blocks = math.ceil(len(plaintext) / self.semi_blockSize)
+        if (S_semi_blocks < 2 or S_semi_blocks > (2**54) - 1):
+            raise ValueError("Unable to encrypt a plaintext with an invalid length")
         S = self.ICV1.copy()
         S.extend(plaintext)
         return self.W(S)
@@ -26,7 +28,9 @@ class KW:
             return S[8:].copy()
         
     def KWP_AE(self, plaintext: bytearray):
-        #TODO: check plaintext len
+        S_semi_blocks = math.ceil(len(plaintext) / self.semi_blockSize)
+        if (S_semi_blocks < 1 or S_semi_blocks > (2**32) - 1):
+            raise ValueError("Unable to encrypt a plaintext with an invalid length")
         bitlength = len(plaintext) * 8
         bytelen = len(plaintext)
         padlen = 8 * math.ceil(bitlength / 64) - bytelen # after the minus sign is the bitlength / 8. rather than dividing i'll just take the length again
@@ -41,7 +45,9 @@ class KW:
             return self.W(S)
         
     def KWP_AD(self, ciphertext: bytearray):
-        #TODO: check C length
+        C_semi_blocks = math.ceil(len(ciphertext) / self.semi_blockSize)
+        if (C_semi_blocks < 2 or C_semi_blocks > 2**29):
+            raise ValueError("Unable to decrypt a ciphertext with an invalid length")
         n = len(ciphertext) // 8
         if len(ciphertext) == 16:
             S = self.cipher.Decrypt(ciphertext, self.key)
