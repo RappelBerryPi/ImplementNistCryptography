@@ -5,6 +5,7 @@ sys.path.append("../")
 import SHA2.SHA2
 import SHA3.IncrementalSHAKE
 import SHA3.SHA_3
+import hashlib
 from array import array
 from copy import deepcopy
 
@@ -813,12 +814,18 @@ class ML_DSA:
     # Algorithm 32
     def ExpandA(self, rho: bytearray):
         A_hat = list()
+        rho_prime = rho.copy()
+        rho_prime.append(0)
+        rho_prime.append(1)
         for r in range(0, self.k):
             A_hat.append(list())
             for s in range(0, self.l):
-                rho_prime = rho.copy()
-                rho_prime.extend(IntegerToBytes(s,1))
-                rho_prime.extend(IntegerToBytes(r,1))
+                # technically what this is called for, but because they're just single ints I'm just appending
+                # rho_prime = rho.copy()
+                # rho_prime.extend(IntegerToBytes(s,1)) 
+                # rho_prime.extend(IntegerToBytes(r,1))
+                rho_prime[-2] = s
+                rho_prime[-1] = r
                 A_hat[r].append(self.RejNTTPoly(rho_prime))
         return A_hat
     
@@ -1103,17 +1110,28 @@ class ML_DSA:
 
     #algorithm 44
     def AddNTT(self, a_hat: array[int], b_hat: array[int]):
-        c_hat = deepcopy(a_hat)
+        c_hat = array("i")
         for i in range(0, 256):
-            c_hat[i] = (c_hat[i] + b_hat[i]) % self.q
+            c_hat.append((a_hat[i] + b_hat[i]) % self.q)
         return c_hat
+
+        # saved just in case
+        # c_hat = deepcopy(a_hat)
+        # for i in range(0, 256):
+        #     c_hat[i] = (c_hat[i] + b_hat[i]) % self.q
+        # return c_hat
 
     #algorithm 45
     def MultiplyNTT(self, a_hat: array[int], b_hat: array[int]):
-        c_hat = deepcopy(a_hat)
+        c_hat = array("i")
         for i in range(0, 256):
-            c_hat[i] = (c_hat[i] * b_hat[i]) % self.q
+            c_hat.append((a_hat[i] * b_hat[i]) % self.q)
         return c_hat
+        # saved just in case
+        # c_hat = deepcopy(a_hat)
+        # for i in range(0, 256):
+        #     c_hat[i] = (c_hat[i] * b_hat[i]) % self.q
+        # return c_hat
 
     #algorithm 46
     def AddVectorNTT(self, v_hat: list[array[int]], w_hat: list[array[int]]):
@@ -1149,10 +1167,15 @@ class ML_DSA:
 
     # no definition2
     def SubtractNTT(self, a_hat: array[int], b_hat: array[int]):
-        c_hat = deepcopy(a_hat)
+        c_hat = array("i")
         for i in range(0, 256):
-            c_hat[i] = (c_hat[i] - b_hat[i]) % self.q
+            c_hat.append((a_hat[i] - b_hat[i]) % self.q)
         return c_hat
+        # copied just in case
+        # c_hat = deepcopy(a_hat)
+        # for i in range(0, 256):
+        #     c_hat[i] = (c_hat[i] - b_hat[i]) % self.q
+        # return c_hat
 
     # no definition 3
     def InfinityNorm(self, w: int):
@@ -1205,10 +1228,14 @@ def IntegerToBytes(x: int, a: int):
     return x.to_bytes(a, "little")
 
 def H(str: bytearray, l: int):
-    return SHA3.SHA_3.SHAKE256().SHAKE(str, 8 * l)
+    return bytearray(hashlib.shake_256(str).digest(l))
+    # speed
+    #return SHA3.SHA_3.SHAKE256().SHAKE(str, 8 * l)
 
 def G(str: bytearray, l: int):
-    return SHA3.SHA_3.SHAKE128().SHAKE(str, 8 * l)
+    return bytearray(hashlib.shake_128(str).digest(l))
+    # speed
+    # return SHA3.SHA_3.SHAKE128().SHAKE(str, 8 * l)
 
 #debug function
 def PrintPKs(pk: bytearray, expected_pk: bytearray, q: int, d: int, k: int):
@@ -1234,6 +1261,7 @@ def PrintPKs(pk: bytearray, expected_pk: bytearray, q: int, d: int, k: int):
         print(expected_part.hex())
         print()
 
+#debug functions
 def printSKs(sk: bytearray, expected_sk: bytearray, q: int, d: int, k: int, l: int):
     rho = sk[0:32]
     K = sk[32:64]
@@ -1274,8 +1302,10 @@ def printSKs(sk: bytearray, expected_sk: bytearray, q: int, d: int, k: int, l: i
 
 def simpleTest(x: ML_DSA):
     pk, sk = x.KeyGen()
+    print("keys generated")
     Message = bytearray(b"hello world")
     signature = x.Sign(sk, Message, bytearray(b""))
+    print("signature produced")
     print(x.displaySetString,x.Verify(pk, Message, signature, bytearray(b"")))
 
 if __name__ == "__main__":
