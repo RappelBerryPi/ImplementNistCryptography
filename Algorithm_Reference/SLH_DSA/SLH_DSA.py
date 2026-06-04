@@ -2,13 +2,15 @@ from array import array
 from abc import ABC, abstractmethod
 from enum import Enum
 import sys
-from math import ceil
+from math import ceil, log2, floor
 sys.path.append("../")
 import SHA2.SHA2
 import RSA.RSA
 import os
 import hashlib
 import hmac
+import csv
+
 
 #copied from ML_DSA
 class KnownPreHash(Enum):
@@ -409,6 +411,12 @@ class SLH_DSA_PARAMETER_SET(Enum):
     SLH_DSA_SHAKE_256S = 9
     SLH_DSA_SHA2_256F = 10
     SLH_DSA_SHAKE_256F  = 11
+    SLH_DSA_SHA2_128_24 = 12
+    SLH_DSA_SHAKE_128_24 = 13
+    SLH_DSA_SHA2_192_24 = 14
+    SLH_DSA_SHAKE_192_24 = 15
+    SLH_DSA_SHA2_256_24 = 16
+    SLH_DSA_SHAKE_256_24 = 17
 
 class SLH_DSA(ABC):  
 
@@ -568,7 +576,85 @@ class SLH_DSA(ABC):
             "Security_Category": 5,
             "pk_bytes": 64,
             "sig_bytes": 49856
-        }
+        },
+        SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128_24: {
+            "n": 16,
+            "h": 22,
+            "d": 1,
+            "h_prime": 22,
+            "a": 24,
+            "k": 6,
+            "lg_w": 2,
+            "m": 21,
+            "Security_Category": 1,
+            "pk_bytes": 32,
+            "sig_bytes": 3856
+        },
+        SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128_24: {
+            "n": 16,
+            "h": 22,
+            "d": 1,
+            "h_prime": 22,
+            "a": 24,
+            "k": 6,
+            "lg_w": 2,
+            "m": 21,
+            "Security_Category": 1,
+            "pk_bytes": 32,
+            "sig_bytes": 3856
+        },
+        SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192_24: {
+            "n": 24,
+            "h": 21,
+            "d": 1,
+            "h_prime": 21,
+            "a": 25,
+            "k": 9,
+            "lg_w": 3,
+            "m": 32,
+            "Security_Category": 3,
+            "pk_bytes": 48,
+            "sig_bytes": 7752 
+        },
+        SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192_24: {
+            "n": 24,
+            "h": 21,
+            "d": 1,
+            "h_prime": 21,
+            "a": 25,
+            "k": 9,
+            "lg_w": 3,
+            "m": 32,
+            "Security_Category": 3,
+            "pk_bytes": 48,
+            "sig_bytes": 7752 
+        },
+        SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256_24: {
+            "n": 32,
+            "h": 21,
+            "d": 1,
+            "h_prime": 21,
+            "a": 25,
+            "k": 12,
+            "lg_w": 2,
+            "m": 41,
+            "Security_Category": 5,
+            "pk_bytes": 64,
+            "sig_bytes": 14944
+        },
+        SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256_24: {
+            "n": 32,
+            "h": 21,
+            "d": 1,
+            "h_prime": 21,
+            "a": 25,
+            "k": 12,
+            "lg_w": 2,
+            "m": 41,
+            "Security_Category": 5,
+            "pk_bytes": 64,
+            "sig_bytes": 14944
+        },
     }
 
     def __init__(self, parameterSet: SLH_DSA_PARAMETER_SET):
@@ -580,10 +666,18 @@ class SLH_DSA(ABC):
         self.k       = self._SLH_DSA_dictionary[parameterSet]["k"]
         self.lg_w    = self._SLH_DSA_dictionary[parameterSet]["lg_w"]
         self.m       = self._SLH_DSA_dictionary[parameterSet]["m"]
-        self.w       = 16
-        self.len_1   = 2 * self.n
-        self.len_2   = 3
-        self.len     = 2 * self.n + 3
+        #section 5
+        if (self.lg_w == 4):
+            self.w       = 16
+            self.len_1   = 2 * self.n
+            self.len_2   = 3
+            self.len     = 2 * self.n + 3
+        else:
+            self.w = 2 ** self.lg_w  
+            self.len_1 = ceil(8 * self.n / self.lg_w)
+            self.len_2 = floor(log2(self.len_1 * (self.w - 1) / self.lg_w)) + 1
+            self.len = self.len_1 + self.len_2
+
     
     # algorithm 1
     def gen_len_2(self, n: int, lg_w: int):
@@ -1235,19 +1329,25 @@ class SLH_DSA_SHAKE(SLH_DSA):
     def __init__(self, parameterSet:SLH_DSA_PARAMETER_SET):
         super().__init__(parameterSet)
         match parameterSet:
-            case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128S | 
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128F | 
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192S | 
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192F | 
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256S | 
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256F):
+            case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128S   | 
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128F   | 
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128_24 |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192S   | 
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192F   | 
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192_24 |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256S   | 
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256F   |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256_24 ):
                 pass
-            case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128S |
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128F |
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192S |
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192F |
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256S |
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256F):
+            case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128S   |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128F   |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128_24 |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192S   |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192F   |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192_24 |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256S   |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256F   |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256_24 ):
                 raise ValueError("Chosen Parameter set cannot be instanciated as a SHAKE version of SLH_DSA")
             case _:
                 raise ValueError("Unknown Parameter Set")
@@ -1295,18 +1395,24 @@ class SLH_DSA_SHA256_128(SLH_DSA):
         super().__init__(parameterSet)
         match parameterSet:
             case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128S |
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128F):
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128F |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128_24 ):
                 pass
-            case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128S | 
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128F | 
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192S | 
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192F | 
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256S | 
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256F |
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192S |
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192F |
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256S |
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256F):
+            case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128S   | 
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128F   | 
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128_24 |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192S   | 
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192F   | 
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192_24 |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256S   | 
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256F   |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256_24 |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192S    |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192F    |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192_24  |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256S    |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256F    |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192_24  ):
                 raise ValueError("Chosen Parameter set cannot be instanciated as a SHA (category 1) version of SLH_DSA")
             case _:
                 raise ValueError("Unknown Parameter Set")
@@ -1366,19 +1472,25 @@ class SLH_DSA_SHA256(SLH_DSA):
     def __init__(self, parameterSet:SLH_DSA_PARAMETER_SET):
         super().__init__(parameterSet)
         match parameterSet:
-            case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192S |
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192F |
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256S |
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256F):
+            case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192S   |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192F   |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256S   |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256F   |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192_24 |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256_24 ):
                 pass
-            case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128S | 
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128F | 
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192S | 
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192F | 
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256S | 
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256F |
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128S |
-                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128F):
+            case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128S   | 
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128F   | 
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128_24 |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192S   | 
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192F   | 
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192_24 |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256S   | 
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256F   |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256_24 |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128F    |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128S    |
+                  SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128_24 ):
                 raise ValueError("Chosen Parameter set cannot be instanciated as a SHA (category 1) version of SLH_DSA")
             case _:
                 raise ValueError("Unknown Parameter Set")
@@ -1441,20 +1553,26 @@ class SLH_DSA_SHA256(SLH_DSA):
 
 def get_slh_dsa_instance_from_parameter_set(parameterSet: SLH_DSA_PARAMETER_SET) -> SLH_DSA:
     match parameterSet:
-        case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128S | 
-              SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128F | 
-              SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192S | 
-              SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192F | 
-              SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256S | 
-              SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256F):
+        case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128S   | 
+              SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128F   | 
+              SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192S   | 
+              SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192F   | 
+              SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256S   | 
+              SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256F   |
+              SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128_24 |
+              SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_192_24 |
+              SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_256_24 ):
             return SLH_DSA_SHAKE(parameterSet)
-        case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128S |
-              SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128F):
+        case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128S   |
+              SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128F   |
+              SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128_24 ):
             return SLH_DSA_SHA256_128(parameterSet)
-        case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192S |
-              SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192F |
-              SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256S |
-              SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256F):
+        case (SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192S   |
+              SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192F   |
+              SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256S   |
+              SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256F   |
+              SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_192_24 |
+              SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_256_24 ):
             return SLH_DSA_SHA256(parameterSet)
         case _:
             raise ValueError("Unknown Parameter Set")
@@ -1478,15 +1596,49 @@ if __name__ == "__main__":
 
 
 
+    import time
     message = bytearray(b"hello world")
     ctx = bytearray(b"")
+    resultDictionary = {}
+    #for parameterSet in [SLH_DSA_PARAMETER_SET.SLH_DSA_SHA2_128_24, SLH_DSA_PARAMETER_SET.SLH_DSA_SHAKE_128_24]:
     for parameterSet in SLH_DSA_PARAMETER_SET:
         print(f"parameterSet {parameterSet}")
         slh_dsa = get_slh_dsa_instance_from_parameter_set(parameterSet)
+
+        start_time = time.perf_counter()
         SK, PK = slh_dsa.slh_keygen()
+        SK, PK, ExpandedPK = slh_dsa.slh_keygen_WithExpandedKey() #TODO: start here and see how much faster it is with caching
+        key_gen = time.perf_counter()
         print("\tKeys Generated")
+
+        sign_start = time.perf_counter()
         signature = slh_dsa.slh_sign(message, ctx, SK)
+        sign_end = time.perf_counter()
         print("\tSigned")
-        print(f"\tIsValid: {slh_dsa.slh_verify(message, signature, ctx, PK)}")
+
+        validation_start = time.perf_counter()
+        isValid = slh_dsa.slh_verify(message, signature, ctx, PK)
+        validation_end = time.perf_counter()
+        print(f"\tIsValid: {isValid}")
+
+        metrics = {}
+        metrics['key_gen'] = key_gen - start_time
+        metrics['sign_time'] = sign_end - sign_start
+        metrics['validation_time'] = validation_end - validation_start
+        metrics['total'] = validation_end - start_time
+        metrics['parameter_set'] = parameterSet
+        resultDictionary[parameterSet] = metrics
+    
+    with open("results.csv", "w", newline='') as csvfile:
+        fieldnames = ['parameter_set', 'total', 'key_gen', 'sign_time', 'validation_time']
+        writer = csv.DictWriter(csvfile, fieldnames)
+        writer.writeheader()
+        for parameterSet, metrics in resultDictionary.items():
+            writer.writerow(metrics)
+            print(parameterSet)
+            print(f"\ttotal time:      {metrics['total']}")
+            print(f"\tKeyGen time:     {metrics['key_gen']}")
+            print(f"\tSign time:       {metrics['sign_time']}")
+            print(f"\tValidation time: {metrics['validation_time']}")
 
 

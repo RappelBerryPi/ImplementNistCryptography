@@ -586,7 +586,8 @@ class RSA:
         self.provable_prime_construction(L, N1, N2, first_seed, e)
     
 
-    def provable_prime_construction(self, L: int, N1: int, N2: int, first_seed: bytearray, e: int):
+    #FIPS 186-5 B.10
+    def provable_prime_construction(self, L: int, N1: int, N2: int, first_seed: bytearray, e: int, hashFunction: SHA2.SHA2.SHA2):
         #1 (skipping as all input is forced and would be acceptable)
         #2
         if (N1 == 1):
@@ -594,8 +595,10 @@ class RSA:
             P2_seed = first_seed.copy()
         #3
         else:
-            # not implementing
-            raise ValueError("Failure")
+            try:
+                P1, P1_seed = self.Shawne_Taylor_Random_Prime_Routine(N1, first_seed.copy())
+            except:
+                return False, 0, 0, 0, 0
 
         #4
         if (N2 == 1):
@@ -603,8 +606,25 @@ class RSA:
             P0_seed = P2_seed.copy()
         #5
         else:
-            # not implementing
-            raise ValueError("Failure")
+            try:
+                P2, P0_seed = self.Shawne_Taylor_Random_Prime_Routine(N1, first_seed.copy())
+            except:
+                return False, 0, 0, 0, 0
+        #6
+        length = math.ceil(L/2) + 1
+        P0, P0_seed = self.Shawne_Taylor_Random_Prime_Routine(length, P0_seed.copy())
+
+        #7
+        if (math.gcd(P0, P1, P2) != 1):
+            return False, 0, 0, 0, 0
+        
+        #8
+        #TODO: start here and finish
+        # iterations = math.ceil(L / )
+        
+    #B.6
+    def Shawne_Taylor_Random_Prime_Routine(self, length: int, input_seed: bytearray):
+        pass
         
 
     # helper function that vlidates the input sizes for all the primitives
