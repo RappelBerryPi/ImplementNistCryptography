@@ -495,7 +495,7 @@ class RSA:
     #TODO: implement key generation in NIST SP 800-56b
 
     # NIST SP 800-56B 6.3.1.1
-    def RSAKPG1_basic(self, strength: int, nBits: int, e: int):
+    def RSAKPG1_basic(self, strength: int, nBits: int, e: int, hashFunction: SHA2.SHA2.SHA2):
         #1.a
         if (strength < 112 or strength > 256):
             raise ValueError("strength is not acceptable")
@@ -510,7 +510,7 @@ class RSA:
         #2
         while (loop):
             #TODO: generate p and q in compliance with FIPS 186
-            p, q = self.generatePandQ(nBits, e)
+            p, q = self.generatePandQ(nBits, e, hashFunction)
     
             #3
             d = self.mod_inv(e, n) % math.lcm(p - 1, q - 1)
@@ -533,15 +533,47 @@ class RSA:
         self.public_key.n = n
         self.private_key.d = d
         self.private_key.n = n
+
+
+    def egcd(self, number1: int, number2: int):
+        if number1 == 0:
+            return number2, 0, 1
+        else:
+            g, y, x = egcd(number2 % number1, number1)
+            return g, x - (number2 // number1) * y, y
     
-    def mod_inv(self, exponent: int, modulus: int):
-        pass
+    # taken from tinyec
+    def mod_inv(self, number: int, modulus: int):
+        if number < 0:
+            return modulus - mod_inv(-number, modulus)
+        g, x, y = egcd(number, modulus)
+        if g != 1:
+            raise ArithmeticError("Modular inverse does not exist")
+        else:
+            return x % modulus
+
+    # def mod_inv(self, exponent: int, modulus: int):
+        # testing github copilot
+        # if modulus <= 0:
+        #     raise ValueError("modulus must be positive")
+        # old_r, remainder = exponent, modulus
+        # old_s, coefficient = 1, 0
+        # while remainder != 0:
+        #     quotient = old_r // remainder
+        #     old_r, remainder = remainder, old_r - quotient * remainder
+        #     old_s, coefficient = coefficient, old_s - quotient * coefficient
+        # if old_r != 1:
+        #     raise ValueError("inverse does not exist")
+        # return old_s % modulus
 
     # FIPS 186-5 5.1 and A.1. Going with option A. to generate P and Q as primes, not the ones with conditions. WOuld
     # prefer to generate provable primes over probable primes.
-    def generatePandQ(self, nlen: int, e: int):
-        pass
-
+    def generatePandQ(self, nlen: int, e: int, hashFunction: SHA2.SHA2.SHA2):
+        isSuccessful, P, Q = self.generateProvablePrime(nlen, e, hashFunction)
+        if (isSuccessful):
+            return P, Q
+        else:
+            raise ValueError("Failure")
 
     # FIPS 186-5 A.1.2.1
     def getSeed(self, nlen: int):
@@ -556,9 +588,9 @@ class RSA:
         return seed
 
     #FIPS 186-5 A.1.2.2
-    def generateProvablePrime(self, nlen: int, e: int, seed: bytes):
+    def generateProvablePrime(self, nlen: int, e: int, seed: bytes, hashFunction: SHA2.SHA2.SHA2):
         #1
-        if (nlen < 2058):
+        if (nlen < 2048):
             raise ValueError("FAILURE")
 
         #2
@@ -583,8 +615,42 @@ class RSA:
         first_seed = working_seed.copy()
 
         # this function raises an exception and as such does not need to be caught. 
-        self.provable_prime_construction(L, N1, N2, first_seed, e)
-    
+        isSuccsessful, p, p1, p2, pseed = self.provable_prime_construction(L, N1, N2, first_seed, e, hashFunction)
+
+        if (not isSuccsessful):
+            return ValueError("FAILURE")
+
+        #6.2
+        working_seed = pseed.copy()
+
+        while True:
+            #7 generate q
+            #7.1
+            L = nlen//2
+            N1 = 1
+            N2 = 1
+            first_seed = working_seed.copy()
+
+            isSuccsessful, q, q1, q2, qseed = self.provable_prime_construction(L, N1, N2, first_seed, e, hashFunction)
+
+            if (not isSuccsessful):
+                return ValueError("FAILURE")
+
+            #7.2
+            working_seed = qseed.copy()
+
+            #8
+            if ((p - q).bit_length() <= 2**((nlen / 2) - 100)):
+                break
+
+        #9
+        pseed.clear() 
+        qseed.clear()
+        working_seed.clear()
+
+        #10
+        return True, p, q
+
 
     #FIPS 186-5 B.10
     def provable_prime_construction(self, L: int, N1: int, N2: int, first_seed: bytearray, e: int, hashFunction: SHA2.SHA2.SHA2):
@@ -596,7 +662,7 @@ class RSA:
         #3
         else:
             try:
-                P1, P1_seed = self.Shawne_Taylor_Random_Prime_Routine(N1, first_seed.copy())
+                P1, P2_seed = self.Shawne_Taylor_Random_Prime_Routine(N1, first_seed.copy())
             except:
                 return False, 0, 0, 0, 0
 
@@ -607,20 +673,48 @@ class RSA:
         #5
         else:
             try:
-                P2, P0_seed = self.Shawne_Taylor_Random_Prime_Routine(N1, first_seed.copy())
+                P2, P0_seed = self.Shawne_Taylor_Random_Prime_Routine(N2, P2_seed.copy())
             except:
                 return False, 0, 0, 0, 0
         #6
         length = math.ceil(L/2) + 1
-        P0, P0_seed = self.Shawne_Taylor_Random_Prime_Routine(length, P0_seed.copy())
+        P0, pseed = self.Shawne_Taylor_Random_Prime_Routine(length, P0_seed.copy())
 
         #7
         if (math.gcd(P0, P1, P2) != 1):
             return False, 0, 0, 0, 0
         
         #8
+        Sha2_hashfunction = SHA2.SHA2.SHA2_Instance(hashFunction)
+        iterations = math.ceil(L / Sha2_hashfunction.message_digest_size) - 1
+
+        #9
+        pgen_counter = 0
+
+        #10
+        x = 0
+
+        #11
+        for i in range(0, iterations):
+            x = x + (Sha2_hashfunction.hash(pseed + i)) * 2**(i * Sha2_hashfunction.message_digest_size)
+
+        #12
+        pseed = pseed + iterations + 1
+
+        #13
+        # missing a variable here in the NIST documentation, assuming it's sqrt(2)
+        temp = math.floor(math.sqrt(2) * 2**(L - 1))
+        x = temp + x % (2**L - temp)
+
+        #14 y is [1,p2] and (y * p0 * p1 - 1) == 0 mod p2
+        y = self.mod_inv(P0 * P1, P2)
+
+        #15
+        temp = 2 * y * P0 * P1
+        t = math.ceil((temp + x)/(temp))
+
+        #16
         #TODO: start here and finish
-        # iterations = math.ceil(L / )
         
     #B.6
     def Shawne_Taylor_Random_Prime_Routine(self, length: int, input_seed: bytearray):
