@@ -1,3 +1,40 @@
+#  certutil.exe -user -store My
+# Serial Number: a9ccdba4c5c60f7e
+# Issuer: CN=1f04603b-aeb2-41b4-9ca8-0a351b2f52c5
+#  NotBefore: 1/10/2026 2:09 PM
+#  NotAfter: 1/11/2027 2:09 AM
+# Subject: CN=1f04603b-aeb2-41b4-9ca8-0a351b2f52c5
+# Signature matches Public Key
+# Root Certificate: Subject matches Issuer
+# Cert Hash(sha1): f9a4c0ee820a7a827cebaed6ba71310dc1d2d095
+#   Key Container = 03614abf-9ab9-4ab5-9f1c-343336c1f553
+#   Unique container name: cb7f3b169ea1a1fc587a06bb5818497c_14ef52e5-8bdd-473c-b844-54c1ee27ca60
+#   Provider = Microsoft Software Key Storage Provider
+# Private key is NOT exportable
+# Signature test passed
+# 
+# C:\Users\leppa\AppData\Roaming\Microsoft\Crypto\Keys\cb7f3b169ea1a1fc587a06bb5818497c_14ef52e5-8bdd-473c-b844-54c1ee27ca60
+
+
+
+# accessing this key.... ?
+# # Locate the certificate by thumbprint
+# $cert = Get-ChildItem Cert:\LocalMachine\My | Where-Object {$_.Thumbprint -eq 'YOUR_THUMBPRINT_HERE'}
+# 
+# # Get the CNG private key extension
+# $RSACng = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($cert)
+# $a = [System.Security.Cryptography.X509Certificates.ECDsaCertificateExtensions]::GetECDsaPrivateKey($cert)
+# 
+# # Export or use the CNG key handle
+# $KeyBytes = $RSACng.Key.Export([System.Security.Cryptography.CngKeyBlobFormat]::Pkcs8PrivateBlob)
+#https://blog.qligier.ch/posts/2026-export-private-key-windows/
+
+
+
+
+
+
+$bytes = Get-Content -Encoding Byte "C:\Users\leppa\AppData\Roaming\Microsoft\Crypto\Keys\cb7f3b169ea1a1fc587a06bb5818497c_14ef52e5-8bdd-473c-b844-54c1ee27ca60"
 
 # this is likely utf16 encoded
 # #0 is 1 and others are 0
@@ -41,10 +78,13 @@ Write-Host " "
 
 #text, length is 16 bytes just like 128..131
 #Modified
+# https://learn.microsoft.com/en-us/windows/win32/SecCNG/key-storage-property-identifiers
+# https://learn.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-filetime
 [System.Text.Encoding]::Unicode.GetString($bytes[136..151])
+[datetime]::FromFileTimeUtc([System.BitConverter]::ToInt64($bytes[152..159], 0));
 
 # 80 177 241 82 106 154 220 1
-[System.BitConverter]::ToString($bytes[152..159])
+# [System.BitConverter]::ToString($bytes[152..159])
 Write-Host " "
 
 # 10 1 0 0
@@ -162,6 +202,8 @@ Write-Host " "
 Write-Host " "
 
 
+# https://learn.microsoft.com/hu-hu/openspecs/windows_protocols/ms-mqqb/c2ccaf27-dd27-49b2-8e86-2f0fcb169487 ?
+# https://learn.microsoft.com/en-us/windows/win32/seccrypto/alg-id ?
 # 16 102 0 0
 [System.BitConverter]::ToString($bytes[644..647])
 
@@ -180,6 +222,7 @@ Write-Host " "
 
 
 # this sequence gets repeated below
+# https://learn.microsoft.com/en-us/windows/win32/seccrypto/alg-id ? SHA-512?
 # 0 0 0 0
 [System.BitConverter]::ToString($bytes[688..691])
 
